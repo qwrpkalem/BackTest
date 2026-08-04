@@ -1,3 +1,9 @@
+<!--
+  아카이브: v2 백테스트 실행 시점의 스펙 문서 (2026-08-04)
+  대응 결과: ./report.md
+  원본: 저장소 루트의 backtest_spec.md 를 실행 시점에 그대로 복사한 사본
+-->
+
 # 백테스트 조건 명세서 (Backtest Spec)
 
 - **전략 이름**: **52주 신고가 모멘텀 v2 — RS 필터**
@@ -7,11 +13,9 @@
   - **v2 (26.08.04) — 본 문서**. RS(상대강도) 조건 추가 + 시가총액 필터 제거
   - 실행 결과의 버전별 비교는 [output/CHANGELOG.md](output/CHANGELOG.md)
 
-> **문서 원칙**: 이 문서가 전략의 단일 기준(single source of truth)이며 **항상 최신
-> 버전만** 담습니다. 조건이 바뀌면 ① 이 문서를 갱신하고 ② 버전을 올리고 ③ 백테스트를
-> 다시 돌려 `output/report.md`를 새로 산출하고 ④ **스펙과 리포트를 한 쌍으로**
-> `output/history/v{N}/`에 보관하며 ⑤ 변경 내용과 지표 변화를 `output/CHANGELOG.md`에
-> 기록합니다. ④는 `python src/archive_version.py v{N} "설명"` 로 실행합니다.
+> **문서 원칙**: 이 문서가 전략의 단일 기준(single source of truth)입니다. 조건이 바뀌면
+> ① 이 문서를 갱신하고 ② 버전을 올리고 ③ 백테스트를 다시 돌려 `output/report.md`를
+> 새로 산출하며 ④ 변경 내용과 지표 변화를 `output/CHANGELOG.md`에 기록합니다.
 
 ---
 
@@ -300,13 +304,7 @@ raw = score_1 × 2 + score_2 + score_3 + score_4
 | `output/equity.csv` | 일별 자산 곡선 |
 | `output/equity_curve.png` | 자산 곡선 + 낙폭 그래프 |
 | `output/CHANGELOG.md` | **버전별 변경 내용과 지표 변화 비교** |
-| `output/history/v{N}/spec.md` | 그 버전 실행에 쓴 **스펙 문서** |
-| `output/history/v{N}/report.md` | 그 버전의 **결과 리포트** |
-
-> 스펙과 리포트는 **반드시 한 쌍으로** 보관합니다. 스펙만 있으면 결과를 알 수 없고,
-> 리포트만 있으면 어떤 조건에서 나온 숫자인지 알 수 없기 때문입니다.
-> 백테스트 직후 `python src/archive_version.py v{N} "설명"` 을 실행하세요
-> (자세한 절차는 [output/history/README.md](output/history/README.md)).
+| `output/history/v{N}_*.md` | 각 버전 리포트 스냅샷 |
 
 ---
 

@@ -1,15 +1,15 @@
 # 백테스트 변경 이력
 
-전략 스펙([backtest_spec.md](../backtest_spec.md))이 바뀔 때마다 그 시점의 `report.md`를
-`output/history/`에 보관하고, 여기에 변경 내용과 지표 변화를 기록합니다.
-`output/report.md`는 항상 **최신 버전**만 담습니다.
+전략 스펙([backtest_spec.md](../backtest_spec.md))이 바뀔 때마다 그 시점의 **스펙과 리포트를
+한 쌍으로** [`output/history/v{N}/`](history/README.md)에 보관하고, 여기에 변경 내용과 지표
+변화를 기록합니다. `backtest_spec.md`와 `output/report.md`는 항상 **최신 버전**만 담습니다.
 
 ## 버전별 요약
 
-| 버전 | 핵심 변경 | 거래횟수 | CAGR | 승률 | 손익비 | MDD | 최종자산 |
-|---|---|---|---|---|---|---|---|
-| v1 | 기준선 (시총 1조 이상) | 1,476 | **+3.83%** | 35.4% | 2.01 | -42.01% | 1.49억 |
-| v2 | RS 추가 + 시총 필터 제거 | 4,869 | **-18.78%** | 33.3% | 1.87 | -92.55% | 0.11억 |
+| 버전 | 핵심 변경 | 거래횟수 | CAGR | 승률 | 손익비 | MDD | 최종자산 | 아카이브 |
+|---|---|---|---|---|---|---|---|---|
+| v1 | 기준선 (시총 1조 이상) | 1,476 | **+3.83%** | 35.4% | 2.01 | -42.01% | 1.49억 | [스펙](history/v1/spec.md) · [리포트](history/v1/report.md) |
+| v2 | RS 추가 + 시총 필터 제거 | 4,869 | **-18.78%** | 33.3% | 1.87 | -92.55% | 0.11억 | [스펙](history/v2/spec.md) · [리포트](history/v2/report.md) |
 
 ---
 
@@ -18,7 +18,8 @@
 - **날짜**: 2026-08-03
 - **변경 내용**: 최초 버전. 52주 신고가(장중) + ATR 이상 상승 + 거래대금 2.5배 급증
   3조건 AND. 유니버스는 월말 시총 1조 이상(월평균 555종목). -8% 트레일링 스탑 청산.
-- **스냅샷**: [history/v1_baseline.md](history/v1_baseline.md)
+- **아카이브**: [스펙](history/v1/spec.md) · [리포트](history/v1/report.md)
+  (스펙은 v2 작업 중 덮어써져 세션 기록에서 복원한 사본입니다)
 
 | 지표 | 값 |
 |---|---|
@@ -35,7 +36,7 @@
 ## v2 — RS(상대강도) 필터 추가 + 시총 필터 제거
 
 - **날짜**: 2026-08-04
-- **스냅샷**: [history/v2_rs-filter.md](history/v2_rs-filter.md)
+- **아카이브**: [스펙](history/v2/spec.md) · [리포트](history/v2/report.md)
 
 ### 변경 내용
 
@@ -120,5 +121,10 @@ v2는 질 낮은 신호를 3배 더 많이 거래해 비용에 잠식됐습니�
 2. `src/config.py` 등 코드 반영
 3. `python src/prepare.py` (유니버스 필터가 바뀐 경우만 — 서명 불일치 시 자동 재계산)
 4. `python src/run.py` → `output/` 전체 재생성
-5. `cp output/report.md output/history/v{N}_{설명}.md`
-6. 이 문서에 변경 내용·지표 변화·원인 분석 추가
+5. **`python src/archive_version.py v{N} "설명"`** → 스펙과 리포트를
+   `output/history/v{N}/` 에 한 쌍으로 보관
+6. 이 문서와 [history/README.md](history/README.md) 표에 항목 추가
+7. git 커밋 → 푸시
+
+> **5번을 스펙 수정 전에 실행할 것.** v1 스펙은 이 절차가 없어 v2 재작성 때
+> 덮어써졌고, git 저장소도 그 뒤에 만들어져 원본이 유실됐습니다.
