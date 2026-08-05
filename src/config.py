@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v3 (RS 필터 + 대형주 유니버스)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v4 (R 기반 포지션 사이징)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -48,7 +48,22 @@ MA_EXIT_PERIOD = 20          # 종가가 20일선 하향 이탈 시 전량
 # ---------------- 자금 관리 (§5) ----------------
 INITIAL_CAPITAL = 100_000_000
 MAX_POSITIONS = 8
-POSITION_RATIO = 1.0 / MAX_POSITIONS   # 총자산의 1/8
+
+# --- v4: Max 2% Rule + R 기반 포지션 사이징 ---
+# 1회 매매 최대 손실을 자산의 2%로 제한한다. 손절폭이 TRAIL_PCT(-8%)이므로
+# 최대 투입금 = 2% / 8% = 자산의 25%. 이 25%를 6R 로 보아 1R 을 정한다.
+MAX_LOSS_PCT = 0.02          # Max 2% Rule — 1회 매매 최대 손실 (자산 대비)
+R_TOTAL_UNITS = 6            # 최대 투입금 = 6R (시장국면 3R + 연속성 3R)
+R_MIN_UNITS = 1              # 각 구성요소의 하한
+R_MAX_UNITS = 3              # 각 구성요소의 상한
+MAX_POSITION_PCT = MAX_LOSS_PCT / TRAIL_PCT      # 0.25 — 6R 에 해당
+R_UNIT_PCT = MAX_POSITION_PCT / R_TOTAL_UNITS    # 0.041667 — 1R
+
+# --- v4: 시장 국면 판정 (강세 3R / 횡보 2R / 약세 1R) ---
+# 강세: 지수 > MA200 이고 MA200 상승 중 / 약세: 지수 < MA200 이고 MA200 하락 중
+REGIME_MA_PERIOD = 200       # 국면 판정용 지수 이동평균
+REGIME_SLOPE_DAYS = 20       # MA200 기울기를 재는 기간 (며칠 전과 비교할지)
+REGIME_BEAR, REGIME_SIDE, REGIME_BULL = 1, 2, 3   # 각 국면의 R 배정
 
 # ---------------- 비용 (§6) ----------------
 FEE_BUY = 0.00015

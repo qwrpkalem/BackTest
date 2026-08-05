@@ -126,6 +126,42 @@ def reason_stats(tr):
     return g.sort_values("건수", ascending=False)
 
 
+def r_stats(tr):
+    """v4: 진입 R 구간별 성과 — 사이징이 실제로 성과와 연결됐는지 확인용."""
+    if not len(tr) or "entry_r" not in tr.columns:
+        return pd.DataFrame()
+    g = tr.groupby("entry_r").agg(
+        건수=("ret", "size"),
+        평균수익률=("ret", "mean"),
+        성공률=("success", "mean"),
+        총손익=("pnl", "sum"))
+    g["비중"] = (g["건수"] / len(tr) * 100).round(1).astype(str) + "%"
+    g["평균수익률"] = (g["평균수익률"] * 100).round(2).astype(str) + "%"
+    g["성공률"] = (g["성공률"] * 100).round(1).astype(str) + "%"
+    g["총손익"] = (g["총손익"] / 1e6).round(1).astype(str) + "백만"
+    g.index.name = "진입R"
+    return g[["건수", "비중", "성공률", "평균수익률", "총손익"]]
+
+
+def regime_stats(tr):
+    """v4: 시장 국면별 성과."""
+    if not len(tr) or "regime_r" not in tr.columns:
+        return pd.DataFrame()
+    name = {1: "약세(1R)", 2: "횡보(2R)", 3: "강세(3R)"}
+    t = tr.copy()
+    t["국면"] = t["regime_r"].map(name)
+    g = t.groupby("국면").agg(
+        건수=("ret", "size"),
+        평균수익률=("ret", "mean"),
+        성공률=("success", "mean"),
+        총손익=("pnl", "sum"))
+    g["비중"] = (g["건수"] / len(t) * 100).round(1).astype(str) + "%"
+    g["평균수익률"] = (g["평균수익률"] * 100).round(2).astype(str) + "%"
+    g["성공률"] = (g["성공률"] * 100).round(1).astype(str) + "%"
+    g["총손익"] = (g["총손익"] / 1e6).round(1).astype(str) + "백만"
+    return g[["건수", "비중", "성공률", "평균수익률", "총손익"]]
+
+
 def save_equity_plot(eq, path):
     try:
         import matplotlib

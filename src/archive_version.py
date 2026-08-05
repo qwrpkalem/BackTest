@@ -37,15 +37,19 @@ def archive(version, note=""):
 
     os.makedirs(dst)
     today = datetime.date.today().isoformat()
-    header = ("<!--\n  아카이브: %s 백테스트 실행 시점의 %%s (%s)\n%s-->\n\n"
-              % (version, today, ("  메모: %s\n" % note) if note else ""))
 
     for src, name, what in ((SPEC, "spec.md", "스펙 문서"),
                             (REPORT, "report.md", "결과 리포트")):
         with open(src, encoding="utf-8") as f:
             body = f.read()
+        # note 에 '%' 가 들어갈 수 있으므로(예: "Max 2% Rule") % 포맷을 쓰지 않는다
+        header = ["<!--", "  아카이브: " + version + " 백테스트 실행 시점의 "
+                  + what + " (" + today + ")"]
+        if note:
+            header.append("  메모: " + note)
+        header += ["-->", "", ""]
         with open(os.path.join(dst, name), "w", encoding="utf-8") as f:
-            f.write(header % what + body)
+            f.write("\n".join(header) + body)
 
     print("[아카이브] %s -> %s" % (version, dst))
     print("  spec.md   (%s 기준 스펙)" % version)

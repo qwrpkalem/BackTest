@@ -107,11 +107,33 @@ def build(code):
     return df
 
 
+def market_regime(close, ma_period=C.REGIME_MA_PERIOD,
+                  slope_days=C.REGIME_SLOPE_DAYS):
+    """시장 국면 판정 — 약세 1 / 횡보 2 / 강세 3 (그대로 R 단위로 쓰인다).
+
+      강세: 지수가 MA200 위에 있고, MA200 이 상승 중
+      약세: 지수가 MA200 아래에 있고, MA200 이 하락 중
+      횡보: 그 외 (위치와 기울기가 엇갈리는 구간)
+
+    기울기는 MA200 을 slope_days 전과 비교해 판단한다. 하루 차분은 추세 전환
+    부근에서 부호가 자주 뒤집혀 국면이 요동치므로 약 1개월치를 본다.
+    워밍업 구간(지표 계산 불가)은 횡보로 둔다.
+    """
+    ma = close.rolling(ma_period).mean()
+    slope = ma - ma.shift(slope_days)
+    r = pd.Series(float(C.REGIME_SIDE), index=close.index)
+    r[(close > ma) & (slope > 0)] = float(C.REGIME_BULL)
+    r[(close < ma) & (slope < 0)] = float(C.REGIME_BEAR)
+    r[ma.isna() | slope.isna()] = float(C.REGIME_SIDE)
+    return r
+
+
 def build_index(path):
-    """지수(코스피/코스닥) CSV -> RS 벤치마크용 rs_raw만 계산된 DataFrame."""
+    """지수(코스피/코스닥) CSV -> RS 벤치마크(rs_raw) + 시장 국면(regime)."""
     if not os.path.exists(path):
         return None
     df = pd.read_csv(path, parse_dates=["date"])
     df = df[df["close"] > 0].sort_values("date").reset_index(drop=True)
     df["rs_raw"] = rs_raw_score(df["close"])
+    df["regime"] = market_regime(df["close"])
     return df

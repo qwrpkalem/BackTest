@@ -103,12 +103,24 @@ def build_panels(codes, verbose=True):
     if not panels:
         raise SystemExit("시그널이 발생한 종목이 없습니다.")
 
+    # v4: 시장 국면 (지수별 1~3R). 거래일 캘린더에 맞춰 배열로 만든다.
+    regime_by_index = {}
+    for sym, df in index_frames.items():
+        if df is not None:
+            r = df.set_index("date")["regime"].reindex(days).fillna(C.REGIME_SIDE)
+            regime_by_index[sym] = r.values.astype(np.float64)
+            share = pd.Series(r.values).value_counts(normalize=True).sort_index()
+            print("[국면] %-6s 약세 %.0f%% / 횡보 %.0f%% / 강세 %.0f%%"
+                  % (sym, share.get(C.REGIME_BEAR, 0) * 100,
+                     share.get(C.REGIME_SIDE, 0) * 100,
+                     share.get(C.REGIME_BULL, 0) * 100), flush=True)
+
     total_sig = sum(len(v) for v in signal_by_day.values())
     print("[패널] 데이터 보유 %d종목 -> 시그널 발생 %d종목 / 거래일 %d일 (%s ~ %s)"
           % (n_data, len(panels), len(days), days[0].date(), days[-1].date()), flush=True)
     print("[패널] 전체 시그널 발생 건수: %d건 (시그널 발생일 %d일)"
           % (total_sig, len(signal_by_day)), flush=True)
-    return panels, days, signal_by_day
+    return panels, days, signal_by_day, regime_by_index, market_map
 
 
 def main():
@@ -121,12 +133,13 @@ def main():
     print("[시작] 유니버스 후보 %d개" % len(codes), flush=True)
 
     t0 = time.time()
-    panels, days, sig_by_day = build_panels(codes)
+    panels, days, sig_by_day, regime_by_index, market_map = build_panels(codes)
     print("[타이밍] build_panels 완료 (%.1fs)" % (time.time() - t0), flush=True)
 
     print("\n[백테스트] 실행", flush=True)
     t1 = time.time()
-    bt = engine.Backtest(panels, uni, days, sig_by_day)
+    bt = engine.Backtest(panels, uni, days, sig_by_day,
+                         regime_by_index=regime_by_index, market_of=market_map)
     eq, tr = bt.run()
     print("[타이밍] bt.run() 완료 (%.1fs)" % (time.time() - t1), flush=True)
 
@@ -161,6 +174,16 @@ def main():
     print("=" * 78)
     print(rs.to_string())
 
+    rst, gst = REP.r_stats(tr), REP.regime_stats(tr)
+    print("\n" + "=" * 78)
+    print("진입 R 구간별 성과")
+    print("=" * 78)
+    print(rst.to_string())
+    print("\n" + "=" * 78)
+    print("시장 국면별 성과")
+    print("=" * 78)
+    print(gst.to_string())
+
     t5 = time.time()
     ok = REP.save_equity_plot(eq, os.path.join(C.OUT, "equity_curve.png"))
     print("[타이밍] save_equity_plot 완료 (%.1fs)" % (time.time() - t5), flush=True)
@@ -173,6 +196,10 @@ def main():
         f.write("## 연도별 성과\n\n" + md + "\n\n")
         f.write("## 청산 사유별 통계\n\n```\n")
         f.write(rs.to_string() + "\n```\n")
+        if len(rst):
+            f.write("\n## 진입 R 구간별 성과\n\n```\n" + rst.to_string() + "\n```\n")
+        if len(gst):
+            f.write("\n## 시장 국면별 성과\n\n```\n" + gst.to_string() + "\n```\n")
         if ok:
             f.write("\n## 자산 곡선\n\n![equity](equity_curve.png)\n")
 

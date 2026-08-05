@@ -26,9 +26,11 @@ import config as C
 class Position(object):
     __slots__ = ("code", "entry_date", "entry_px", "qty", "qty_init", "highest",
                  "stop", "tp_px", "partial_done", "pending_ma_exit",
-                 "cost_total", "proceeds_total", "last_close")
+                 "cost_total", "proceeds_total", "last_close",
+                 "entry_r", "regime_r", "streak_r", "capped")
 
-    def __init__(self, code, date, px, qty, cost):
+    def __init__(self, code, date, px, qty, cost,
+                 entry_r=0, regime_r=0, streak_r=0, capped=False):
         self.code = code
         self.entry_date = date
         self.entry_px = px
@@ -42,6 +44,10 @@ class Position(object):
         self.cost_total = cost
         self.proceeds_total = 0.0
         self.last_close = px
+        self.entry_r = entry_r            # v4: 진입 시 목표 R (시장국면 + 연속성)
+        self.regime_r = regime_r
+        self.streak_r = streak_r
+        self.capped = capped              # 현금 부족으로 목표 R 을 못 채웠는가
 
 
 def sell_amount(price, qty):
@@ -55,18 +61,27 @@ def buy_cost(price, qty):
 
 
 class Backtest(object):
-    def __init__(self, panels, universe, days, signal_by_day):
+    def __init__(self, panels, universe, days, signal_by_day,
+                 regime_by_index=None, market_of=None):
         self.panels = panels              # {code: {open,high,low,close,sma20,value,valid}}
         self.universe = universe          # {'YYYY-MM': set(code)}
         self.days = days                  # DatetimeIndex
         self.signal_by_day = signal_by_day  # {di: [code, ...]}
+        self.regime_by_index = regime_by_index or {}   # {'KOSPI': ndarray(1~3), ...}
+        self.market_of = market_of or {}               # {code: 'KOSPI'|'KOSDAQ'}
         self.cash = float(C.INITIAL_CAPITAL)
         self.positions = {}
         self.trades = []
         self.equity = []
+        # v4: 매매 성공 연속성 R. 1R 로 시작해 성공하면 +1R, 실패하면 -1R (1~3R)
+        self.streak_r = C.R_MIN_UNITS
+        self.streak_log = []              # (date, code, success, streak_r_after)
 
     # ------------------------------------------------------------ 청산
     def _close_position(self, pos, date, reason):
+        # v4 성공 판정: +24% 도달(부분익절 트리거) 여부만 본다. 24%에 못 닿았으면
+        # 수익으로 끝났더라도 실패로 계산한다(이분법 — 스펙 §5-3).
+        success = bool(pos.partial_done)
         self.trades.append({
             "code": pos.code,
             "entry_date": pos.entry_date,
@@ -80,8 +95,20 @@ class Backtest(object):
             "reason": reason,
             "partial_tp": pos.partial_done,
             "hold_days": (date - pos.entry_date).days,
+            "entry_r": pos.entry_r,           # 진입 시 목표 R (2~6)
+            "regime_r": pos.regime_r,         # 그중 시장국면 몫 (1~3)
+            "streak_r": pos.streak_r,         # 그중 연속성 몫 (1~3)
+            "capped": pos.capped,             # 현금 부족으로 목표 R 미달성
+            "success": success,
         })
         del self.positions[pos.code]
+
+        # 연속성 R 갱신 — 다음에 진입하는 포지션부터 적용된다
+        if success:
+            self.streak_r = min(C.R_MAX_UNITS, self.streak_r + 1)
+        else:
+            self.streak_r = max(C.R_MIN_UNITS, self.streak_r - 1)
+        self.streak_log.append((date, pos.code, success, self.streak_r))
 
     def _sell_all(self, pos, date, price, reason):
         amt = sell_amount(price, pos.qty)
@@ -141,6 +168,15 @@ class Backtest(object):
         return v
 
     # ------------------------------------------------------------ 진입
+    def _regime_r(self, code, di):
+        """종목이 속한 시장(코스피/코스닥) 지수의 당일 국면 R (1~3).
+        지수 데이터가 없으면 횡보(2R)로 둔다."""
+        arr = self.regime_by_index.get(self.market_of.get(code))
+        if arr is None:
+            return C.REGIME_SIDE
+        v = arr[di]
+        return C.REGIME_SIDE if v != v else int(v)     # NaN 방어
+
     def _process_entries(self, di, date, equity):
         slots = C.MAX_POSITIONS - len(self.positions)
         if slots <= 0:
@@ -161,11 +197,18 @@ class Backtest(object):
             return
         cands.sort(reverse=True)          # 거래대금 큰 순
 
-        target = equity * C.POSITION_RATIO
+        # v4: Max 2% Rule 기반 1R. 6R 이 곧 '최대 손실 2%'에 해당하는 투입금이다.
+        r_unit = equity * C.R_UNIT_PCT
         for _, code in cands[:slots]:
+            regime_r = self._regime_r(code, di)
+            total_r = regime_r + self.streak_r          # 2R ~ 6R
+            target = total_r * r_unit
+
             px = self.panels[code]["close"][di]
             unit = px * (1.0 + C.SLIPPAGE) * (1.0 + C.FEE_BUY)
-            budget = min(target, self.cash * 0.9999)   # 반올림으로 현금 초과 방지
+            avail = self.cash * 0.9999                 # 반올림으로 현금 초과 방지
+            budget = min(target, avail)
+            capped = avail < target                    # 목표 R 을 현금이 못 받쳐줌
             qty = int(math.floor(budget / unit))
             if qty <= 0:
                 continue
@@ -173,7 +216,9 @@ class Backtest(object):
             if cost > self.cash:
                 continue
             self.cash -= cost
-            self.positions[code] = Position(code, date, px, qty, cost)
+            self.positions[code] = Position(code, date, px, qty, cost,
+                                            entry_r=total_r, regime_r=regime_r,
+                                            streak_r=self.streak_r, capped=capped)
 
     # ------------------------------------------------------------ 실행
     def run(self, verbose=True):
