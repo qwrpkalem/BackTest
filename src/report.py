@@ -147,7 +147,9 @@ def regime_stats(tr):
     """v4: 시장 국면별 성과."""
     if not len(tr) or "regime_r" not in tr.columns:
         return pd.DataFrame()
-    name = {1: "약세(1R)", 2: "횡보(2R)", 3: "강세(3R)"}
+    name = {C.REGIME_BEAR: "약세(%.1fR)" % C.REGIME_BEAR,
+            C.REGIME_SIDE: "횡보(%.1fR)" % C.REGIME_SIDE,
+            C.REGIME_BULL: "강세(%.1fR)" % C.REGIME_BULL}
     t = tr.copy()
     t["국면"] = t["regime_r"].map(name)
     g = t.groupby("국면").agg(

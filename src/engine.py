@@ -105,9 +105,9 @@ class Backtest(object):
 
         # 연속성 R 갱신 — 다음에 진입하는 포지션부터 적용된다
         if success:
-            self.streak_r = min(C.R_MAX_UNITS, self.streak_r + 1)
+            self.streak_r = min(C.R_MAX_UNITS, self.streak_r + C.R_STEP)
         else:
-            self.streak_r = max(C.R_MIN_UNITS, self.streak_r - 1)
+            self.streak_r = max(C.R_MIN_UNITS, self.streak_r - C.R_STEP)
         self.streak_log.append((date, pos.code, success, self.streak_r))
 
     def _sell_all(self, pos, date, price, reason):
@@ -169,13 +169,13 @@ class Backtest(object):
 
     # ------------------------------------------------------------ 진입
     def _regime_r(self, code, di):
-        """종목이 속한 시장(코스피/코스닥) 지수의 당일 국면 R (1~3).
-        지수 데이터가 없으면 횡보(2R)로 둔다."""
+        """종목이 속한 시장(코스피/코스닥) 지수의 당일 국면 R.
+        지수 데이터가 없으면 횡보로 둔다. (0.5R 단위이므로 float 로 다룬다)"""
         arr = self.regime_by_index.get(self.market_of.get(code))
         if arr is None:
             return C.REGIME_SIDE
         v = arr[di]
-        return C.REGIME_SIDE if v != v else int(v)     # NaN 방어
+        return C.REGIME_SIDE if v != v else float(v)   # NaN 방어
 
     def _process_entries(self, di, date, equity):
         slots = C.MAX_POSITIONS - len(self.positions)
