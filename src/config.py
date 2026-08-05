@@ -2,6 +2,10 @@
 """백테스트 파라미터 — backtest_spec.md 와 1:1 대응."""
 import os
 
+# ---------------- 전략 버전 ----------------
+# 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
+STRATEGY_NAME = "52주 신고가 모멘텀 v3 (RS 필터 + 대형주 유니버스)"
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 DAUM_DIR = os.path.join(DATA, "daum")
@@ -15,6 +19,7 @@ TEST_END = "2026-07-31"
 
 # ---------------- 유니버스 (§1) ----------------
 MARKETS = ("STK", "KSQ")     # KOSPI, KOSDAQ (KONEX 제외)
+MIN_MARKET_CAP = 1_000_000_000_000   # 1조원 (v3에서 복원 — v2의 소형주 편입이 성과를 훼손)
 MIN_PRICE = 1_000                    # 1,000원
 MIN_LISTED_DAYS = 250                # 상장 250거래일 미만 제외
 UNIVERSE_REBAL = "M"                 # 매월 말 유니버스 재구성

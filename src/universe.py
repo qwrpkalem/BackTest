@@ -19,13 +19,15 @@ def filter_signature():
 
     이 값이 바뀌면 캐시가 낡은 필터 기준으로 만들어진 것이므로 재계산해야 한다.
     """
-    return {"MIN_PRICE": C.MIN_PRICE, "MIN_LISTED_DAYS": C.MIN_LISTED_DAYS}
+    return {"MIN_MARKET_CAP": C.MIN_MARKET_CAP,
+            "MIN_PRICE": C.MIN_PRICE,
+            "MIN_LISTED_DAYS": C.MIN_LISTED_DAYS}
 
 
 def build_universe(codes, verbose=True):
     """월말 기준 유니버스 dict: {'YYYY-MM': set(codes)}
 
-    조건: 원주가 종가 >= 1,000원, 상장 250거래일 이상
+    조건: 시가총액 >= 1조, 원주가 종가 >= 1,000원, 상장 250거래일 이상
     해당 월말 기준을 통과하면 '다음 달' 한 달간 매수 대상이 된다.
     """
     rows = []
@@ -41,7 +43,8 @@ def build_universe(codes, verbose=True):
         d["bars"] = range(len(d))
         d["ym"] = d["date"].dt.to_period("M")
         last = d.groupby("ym").tail(1)          # 각 월의 마지막 거래일
-        last = last[(last["close_r"] >= C.MIN_PRICE)
+        last = last[(last["marcap"] >= C.MIN_MARKET_CAP)
+                    & (last["close_r"] >= C.MIN_PRICE)
                     & (last["bars"] >= C.MIN_LISTED_DAYS)]
         for ym in last["ym"]:
             rows.append((str(ym), code))

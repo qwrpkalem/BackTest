@@ -166,7 +166,7 @@ def main():
     print("[타이밍] save_equity_plot 완료 (%.1fs)" % (time.time() - t5), flush=True)
 
     with open(os.path.join(C.OUT, "report.md"), "w", encoding="utf-8") as f:
-        f.write("# 백테스트 결과 — 52주 신고가 모멘텀 v2 (RS 필터)\n\n")
+        f.write("# 백테스트 결과 — %s\n\n" % C.STRATEGY_NAME)
         f.write("- 기간: %s ~ %s\n" % (days[0].date(), days[-1].date()))
         f.write("- 초기자본: {:,}원\n".format(C.INITIAL_CAPITAL))
         f.write("- 최종자산: {:,.0f}원\n\n".format(eq["equity"].iloc[-1]))
