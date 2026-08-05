@@ -164,6 +164,32 @@ def regime_stats(tr):
     return g[["건수", "비중", "성공률", "평균수익률", "총손익"]]
 
 
+def top_trades(tr, n=10):
+    """수익률 상위 N개 매매 — 리포트 말미에 항상 기록한다.
+
+    모멘텀 전략은 소수의 큰 수익이 전체 성과를 좌우하므로, 어떤 매매가
+    실제로 벌어줬는지 매 버전마다 남겨 비교할 수 있게 한다.
+    """
+    if not len(tr):
+        return pd.DataFrame()
+    t = tr.nlargest(n, "ret").copy()
+    out = pd.DataFrame({
+        "종목": t["name"] if "name" in t.columns else t["code"],
+        "코드": t["code"],
+        "진입": pd.to_datetime(t["entry_date"]).dt.strftime("%Y-%m-%d"),
+        "청산": pd.to_datetime(t["exit_date"]).dt.strftime("%Y-%m-%d"),
+        "보유": t["hold_days"].astype(int).astype(str) + "일",
+        "수익률": (t["ret"] * 100).round(1).map(lambda x: "%+.1f%%" % x),
+        "손익": (t["pnl"] / 1e4).round(0).astype(int).map(lambda x: "{:,}만".format(x)),
+        "청산사유": t["reason"],
+    })
+    if "entry_r" in t.columns:
+        out.insert(6, "진입R", t["entry_r"].map(lambda x: "%.1fR" % x))
+    if "success" in t.columns:
+        out["24%도달"] = t["success"].map({True: "O", False: "X"})
+    return out.reset_index(drop=True)
+
+
 def save_equity_plot(eq, path):
     try:
         import matplotlib

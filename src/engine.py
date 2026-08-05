@@ -76,6 +76,9 @@ class Backtest(object):
         # v4: 매매 성공 연속성 R. 1R 로 시작해 성공하면 +1R, 실패하면 -1R (1~3R)
         self.streak_r = C.R_MIN_UNITS
         self.streak_log = []              # (date, code, success, streak_r_after)
+        # 손절선이 고점을 따라 올라가는지(트레일링) 여부에 따라 사유 코드가 다르다
+        self._gap_reason = "TRAIL_GAP" if C.TRAILING_STOP else "STOP_GAP"
+        self._intra_reason = "TRAIL_INTRA" if C.TRAILING_STOP else "STOP_INTRA"
 
     # ------------------------------------------------------------ 청산
     def _close_position(self, pos, date, reason):
@@ -144,16 +147,19 @@ class Backtest(object):
 
             S = pos.stop
             if o <= S:
-                self._sell_all(pos, date, o, "TRAIL_GAP")
+                self._sell_all(pos, date, o, self._gap_reason)
                 continue
             if l <= S:
-                self._sell_all(pos, date, S, "TRAIL_INTRA")
+                self._sell_all(pos, date, S, self._intra_reason)
                 continue
 
             if (not pos.partial_done) and h >= pos.tp_px:
                 self._sell_partial(pos, pos.tp_px)
 
-            if h > pos.highest:
+            # v6~: TRAILING_STOP=False 이면 손절선을 진입가 기준 -8% 에 고정한다.
+            # 트레일링은 고점 대비로 따라 올라가 정상적인 조정에도 청산돼 '수익도
+            # 짧게' 잘라내므로, 손실만 짧게 자르고 수익은 20일선 이탈까지 끌고 간다.
+            if C.TRAILING_STOP and h > pos.highest:
                 pos.highest = h
                 pos.stop = h * (1.0 - C.TRAIL_PCT)
 

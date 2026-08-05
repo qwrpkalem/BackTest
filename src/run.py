@@ -174,7 +174,7 @@ def main():
     print("=" * 78)
     print(rs.to_string())
 
-    rst, gst = REP.r_stats(tr), REP.regime_stats(tr)
+    rst, gst, top = REP.r_stats(tr), REP.regime_stats(tr), REP.top_trades(tr, 10)
     print("\n" + "=" * 78)
     print("진입 R 구간별 성과")
     print("=" * 78)
@@ -183,6 +183,11 @@ def main():
     print("시장 국면별 성과")
     print("=" * 78)
     print(gst.to_string())
+
+    print("\n" + "=" * 78)
+    print("수익률 상위 10개 매매")
+    print("=" * 78)
+    print(top.to_string(index=False))
 
     t5 = time.time()
     ok = REP.save_equity_plot(eq, os.path.join(C.OUT, "equity_curve.png"))
@@ -202,6 +207,9 @@ def main():
             f.write("\n## 시장 국면별 성과\n\n```\n" + gst.to_string() + "\n```\n")
         if ok:
             f.write("\n## 자산 곡선\n\n![equity](equity_curve.png)\n")
+        if len(top):
+            f.write("\n## 수익률 상위 10개 매매\n\n"
+                    + REP.to_markdown(top) + "\n")
 
     print("\n[저장] output/report.md, trades.csv, equity.csv, equity_curve.png")
 
