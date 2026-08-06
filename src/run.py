@@ -115,12 +115,24 @@ def build_panels(codes, verbose=True):
                      share.get(C.REGIME_SIDE, 0) * 100,
                      share.get(C.REGIME_BULL, 0) * 100), flush=True)
 
+    # v10: 시장 필터 — 지수가 N일선 아래인 날은 신규 진입을 쉰다
+    market_open = None
+    if C.MARKET_FILTER:
+        p = os.path.join(C.INDEX_DIR, "%s.csv" % C.MARKET_FILTER_INDEX)
+        mi = pd.read_csv(p, parse_dates=["date"]).sort_values("date").set_index("date")
+        ma = mi["close"].rolling(C.MARKET_FILTER_MA).mean()
+        ok = (mi["close"] >= ma).reindex(days)
+        market_open = ok.fillna(False).values.astype(bool)
+        print("[시장필터] %s %d일선 기준 — 진입 허용 %d일 / 중단 %d일 (%.0f%% 중단)"
+              % (C.MARKET_FILTER_INDEX, C.MARKET_FILTER_MA, market_open.sum(),
+                 (~market_open).sum(), (~market_open).mean() * 100), flush=True)
+
     total_sig = sum(len(v) for v in signal_by_day.values())
     print("[패널] 데이터 보유 %d종목 -> 시그널 발생 %d종목 / 거래일 %d일 (%s ~ %s)"
           % (n_data, len(panels), len(days), days[0].date(), days[-1].date()), flush=True)
     print("[패널] 전체 시그널 발생 건수: %d건 (시그널 발생일 %d일)"
           % (total_sig, len(signal_by_day)), flush=True)
-    return panels, days, signal_by_day, regime_by_index, market_map
+    return panels, days, signal_by_day, regime_by_index, market_map, market_open
 
 
 def main():
@@ -133,14 +145,17 @@ def main():
     print("[시작] 유니버스 후보 %d개" % len(codes), flush=True)
 
     t0 = time.time()
-    panels, days, sig_by_day, regime_by_index, market_map = build_panels(codes)
+    panels, days, sig_by_day, regime_by_index, market_map, market_open = build_panels(codes)
     print("[타이밍] build_panels 완료 (%.1fs)" % (time.time() - t0), flush=True)
 
     print("\n[백테스트] 실행", flush=True)
     t1 = time.time()
     bt = engine.Backtest(panels, uni, days, sig_by_day,
-                         regime_by_index=regime_by_index, market_of=market_map)
+                         regime_by_index=regime_by_index, market_of=market_map,
+                         market_open=market_open)
     eq, tr = bt.run()
+    if C.MARKET_FILTER:
+        print("[시장필터] 진입을 건너뛴 날 %d일" % bt.skipped_days, flush=True)
     print("[타이밍] bt.run() 완료 (%.1fs)" % (time.time() - t1), flush=True)
 
     # ---------------- 결과 저장 ----------------

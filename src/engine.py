@@ -62,13 +62,16 @@ def buy_cost(price, qty):
 
 class Backtest(object):
     def __init__(self, panels, universe, days, signal_by_day,
-                 regime_by_index=None, market_of=None):
+                 regime_by_index=None, market_of=None, market_open=None):
         self.panels = panels              # {code: {open,high,low,close,sma20,value,valid}}
         self.universe = universe          # {'YYYY-MM': set(code)}
         self.days = days                  # DatetimeIndex
         self.signal_by_day = signal_by_day  # {di: [code, ...]}
         self.regime_by_index = regime_by_index or {}   # {'KOSPI': ndarray(1~3), ...}
         self.market_of = market_of or {}               # {code: 'KOSPI'|'KOSDAQ'}
+        # v10: 신규 진입을 허용하는 날인지 (코스피가 60일선 위인가). None 이면 항상 허용.
+        self.market_open = market_open
+        self.skipped_days = 0             # 시장 필터로 진입을 건너뛴 날 수
         self.cash = float(C.INITIAL_CAPITAL)
         self.positions = {}
         self.trades = []
@@ -184,6 +187,11 @@ class Backtest(object):
         return C.REGIME_SIDE if v != v else float(v)   # NaN 방어
 
     def _process_entries(self, di, date, equity):
+        # v10: 시장이 약할 때(코스피 < 60일선)는 신규 진입을 쉰다.
+        # 보유 포지션은 기존 청산 규칙을 그대로 따르므로 여기서만 막으면 된다.
+        if self.market_open is not None and not self.market_open[di]:
+            self.skipped_days += 1
+            return
         slots = C.MAX_POSITIONS - len(self.positions)
         if slots <= 0:
             return
