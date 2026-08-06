@@ -114,6 +114,7 @@ def build_panels(codes, verbose=True):
 
     # 시장 국면 (1~3R). 거래일 캘린더에 맞춰 배열로 만든다.
     regime_by_index = {}
+    ratio = None
     if C.REGIME_MODE == "breadth":
         # v12: 종가가 200일선 아래인 종목 비율로 판정. 시장 전체 공통 값이므로
         # 두 지수 키에 같은 배열을 넣어 엔진 인터페이스를 그대로 쓴다.
@@ -163,7 +164,7 @@ def build_panels(codes, verbose=True):
           % (n_data, len(panels), len(days), days[0].date(), days[-1].date()), flush=True)
     print("[패널] 전체 시그널 발생 건수: %d건 (시그널 발생일 %d일)"
           % (total_sig, len(signal_by_day)), flush=True)
-    return panels, days, signal_by_day, regime_by_index, market_map, market_open
+    return panels, days, signal_by_day, regime_by_index, market_map, market_open, ratio
 
 
 def main():
@@ -176,7 +177,7 @@ def main():
     print("[시작] 유니버스 후보 %d개" % len(codes), flush=True)
 
     t0 = time.time()
-    panels, days, sig_by_day, regime_by_index, market_map, market_open = build_panels(codes)
+    panels, days, sig_by_day, regime_by_index, market_map, market_open, _ = build_panels(codes)
     print("[타이밍] build_panels 완료 (%.1fs)" % (time.time() - t0), flush=True)
 
     print("\n[백테스트] 실행", flush=True)
