@@ -167,6 +167,10 @@ class Backtest(object):
                 pos.highest = h
                 pos.stop = h * (1.0 - C.TRAIL_PCT)
 
+            # v14: MA_EXIT_AFTER_TP 면 +24% 에 닿기 전까지는 20일선을 깨도 홀딩한다.
+            # 이 경우 유일한 청산 수단은 진입가 -8% 고정손절이다.
+            if C.MA_EXIT_AFTER_TP and not pos.partial_done:
+                continue
             sma = p["sma20"][di]
             if sma == sma and c < sma:    # NaN 아니고 이탈
                 pos.pending_ma_exit = True

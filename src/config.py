@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v12 (시장폭 국면 + 시장별 필터, 1R)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v14 (20일선 이탈을 +24% 도달 이후에만)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -49,6 +49,10 @@ TRAIL_PCT = 0.08             # 손절폭 -8%
 PARTIAL_TP_PCT = 0.24        # +24% 도달 시
 PARTIAL_TP_RATIO = 0.30      # 보유 수량의 30% 익절
 MA_EXIT_PERIOD = 20          # 종가가 20일선 하향 이탈 시 전량
+# v14: 20일선 이탈 청산을 '+24% 도달 이후'에만 적용한다.
+#   True  면 +24% 에 닿기 전에는 20일선을 깨도 홀딩하고 -8% 고정손절만 유효
+#   False 면 도달 여부와 무관하게 20일선 이탈 시 청산 (v6~v13)
+MA_EXIT_AFTER_TP = True
 
 # ---------------- 자금 관리 (§5) ----------------
 INITIAL_CAPITAL = 100_000_000
