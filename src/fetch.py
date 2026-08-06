@@ -189,3 +189,76 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------- 투자자별 순매매
+def fetch_investor_page(session, code, page, retries=3):
+    """네이버 '외국인·기관' 페이지 한 장(20거래일)의 순매매 표를 파싱한다."""
+    import io as _io
+    url = "https://finance.naver.com/item/frgn.naver"
+    for attempt in range(retries):
+        try:
+            r = session.get(url, params={"code": code, "page": page}, timeout=20)
+            if r.status_code != 200:
+                time.sleep(1.0 + attempt)
+                continue
+            r.encoding = "euc-kr"
+            for t in pd.read_html(_io.StringIO(r.text)):
+                cols = t.columns
+                if not isinstance(cols, pd.MultiIndex):
+                    continue
+                if "기관" not in [c[0] for c in cols]:
+                    continue
+                t = t.dropna(how="all")
+                t.columns = ["date", "close", "chg", "rate", "volume",
+                             "inst_net", "frgn_net", "frgn_shares", "frgn_ratio"]
+                t = t.dropna(subset=["date"])
+                t = t[t["date"].astype(str).str.match(r"\d{4}\.\d{2}\.\d{2}$")]
+                return t[["date", "inst_net", "frgn_net"]]
+            return None
+        except Exception:
+            time.sleep(1.0 + attempt)
+    return None
+
+
+def run_investor(tickers, max_pages=145):
+    """종목별 기관·외국인 순매매를 DATA_START 까지 거슬러 수집.
+
+    페이지당 20거래일이라 10년치는 종목당 약 130페이지가 필요하다.
+    이미 받은 종목은 건너뛴다(원천 데이터 영구 캐시 원칙).
+    """
+    os.makedirs(C.INVESTOR_DIR, exist_ok=True)
+    s = requests.Session()
+    s.headers.update({"User-Agent": UA, "Referer": "https://finance.naver.com/"})
+    start = "%s.%s.%s" % (C.DATA_START[:4], C.DATA_START[4:6], C.DATA_START[6:])
+
+    todo = [t for t in tickers if not os.path.exists(
+        os.path.join(C.INVESTOR_DIR, "%s.csv" % t))]
+    log("[투자자] 대상 %d개 (캐시 %d개 건너뜀)" % (len(todo), len(tickers) - len(todo)))
+    t0, fails, pages = time.time(), [], 0
+
+    for i, code in enumerate(todo, 1):
+        rows = []
+        for pg in range(1, max_pages + 1):
+            t = fetch_investor_page(s, code, pg)
+            pages += 1
+            if t is None or len(t) == 0:
+                break
+            rows.append(t)
+            if str(t["date"].iloc[-1]) <= start:   # DATA_START 이전까지 받았으면 중단
+                break
+            time.sleep(0.1)
+        if not rows:
+            fails.append(code)
+        else:
+            df = pd.concat(rows, ignore_index=True).drop_duplicates(subset=["date"])
+            df["date"] = pd.to_datetime(df["date"], format="%Y.%m.%d")
+            df = df[df["date"] >= pd.Timestamp(C.DATA_START)].sort_values("date")
+            df.to_csv(os.path.join(C.INVESTOR_DIR, "%s.csv" % code), index=False)
+        if i % 20 == 0:
+            el = time.time() - t0
+            log("  %4d/%d  %.1f분 경과  페이지 %d  실패 %d  (잔여 약 %.1f분)"
+                % (i, len(todo), el / 60, pages, len(fails), el / i * (len(todo) - i) / 60))
+    log("[투자자] 완료 %d개, 실패 %d개, 총 %d페이지  %.1f분"
+        % (len(todo) - len(fails), len(fails), pages, (time.time() - t0) / 60))
+    return fails
