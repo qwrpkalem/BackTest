@@ -65,6 +65,9 @@ def build_panels(codes, verbose=True):
         print("[경고] 지수 데이터가 없어 RS 필터가 적용되지 않습니다.", flush=True)
 
     panels, signal_by_day = {}, {}
+    # v12: 시장폭(breadth) 집계 — 종가가 200일선 아래인 종목 수 / 유효 종목 수
+    below = np.zeros(len(days))
+    valid_cnt = np.zeros(len(days))
     n_data, t0 = 0, time.time()
     for i, code in enumerate(codes, 1):
         df = IND.build(code)
@@ -73,6 +76,12 @@ def build_panels(codes, verbose=True):
         n_data += 1
         d = df.set_index("date").reindex(days)
         del df
+
+        sb = d["sma_breadth"].values
+        cl = d["close"].values
+        ok = ~(np.isnan(sb) | np.isnan(cl))
+        valid_cnt += ok
+        below += ok & (cl < sb)
 
         base = d["signal_base"].fillna(False).values.astype(bool)
         bench_series = index_rs.get(market_map.get(code))
@@ -103,29 +112,51 @@ def build_panels(codes, verbose=True):
     if not panels:
         raise SystemExit("시그널이 발생한 종목이 없습니다.")
 
-    # v4: 시장 국면 (지수별 1~3R). 거래일 캘린더에 맞춰 배열로 만든다.
+    # 시장 국면 (1~3R). 거래일 캘린더에 맞춰 배열로 만든다.
     regime_by_index = {}
-    for sym, df in index_frames.items():
-        if df is not None:
-            r = df.set_index("date")["regime"].reindex(days).fillna(C.REGIME_SIDE)
-            regime_by_index[sym] = r.values.astype(np.float64)
-            share = pd.Series(r.values).value_counts(normalize=True).sort_index()
-            print("[국면] %-6s 약세 %.0f%% / 횡보 %.0f%% / 강세 %.0f%%"
-                  % (sym, share.get(C.REGIME_BEAR, 0) * 100,
-                     share.get(C.REGIME_SIDE, 0) * 100,
-                     share.get(C.REGIME_BULL, 0) * 100), flush=True)
+    if C.REGIME_MODE == "breadth":
+        # v12: 종가가 200일선 아래인 종목 비율로 판정. 시장 전체 공통 값이므로
+        # 두 지수 키에 같은 배열을 넣어 엔진 인터페이스를 그대로 쓴다.
+        with np.errstate(invalid="ignore", divide="ignore"):
+            ratio = np.where(valid_cnt > 0, below / valid_cnt, np.nan)
+        reg = np.full(len(days), float(C.REGIME_SIDE))
+        reg[ratio < C.BREADTH_BULL_MAX] = float(C.REGIME_BULL)
+        reg[ratio > C.BREADTH_BEAR_MIN] = float(C.REGIME_BEAR)
+        reg[np.isnan(ratio)] = float(C.REGIME_SIDE)     # 워밍업 구간
+        for sym in C.MARKET_INDEX.values():
+            regime_by_index[sym] = reg
+        share = pd.Series(reg).value_counts(normalize=True)
+        print("[국면] 시장폭 기준 (200일선 아래 비율) — 하락 %.0f%% / 횡보 %.0f%% / 강세 %.0f%%"
+              % (share.get(float(C.REGIME_BEAR), 0) * 100,
+                 share.get(float(C.REGIME_SIDE), 0) * 100,
+                 share.get(float(C.REGIME_BULL), 0) * 100), flush=True)
+        v = ratio[~np.isnan(ratio)]
+        print("[국면] 200일선 아래 비율: 중앙값 %.0f%% / 최소 %.0f%% / 최대 %.0f%% (대상 %d종목)"
+              % (np.median(v) * 100, v.min() * 100, v.max() * 100, int(valid_cnt.max())), flush=True)
+    else:
+        for sym, df in index_frames.items():
+            if df is not None:
+                r = df.set_index("date")["regime"].reindex(days).fillna(C.REGIME_SIDE)
+                regime_by_index[sym] = r.values.astype(np.float64)
+                share = pd.Series(r.values).value_counts(normalize=True).sort_index()
+                print("[국면] %-6s 약세 %.0f%% / 횡보 %.0f%% / 강세 %.0f%%"
+                      % (sym, share.get(C.REGIME_BEAR, 0) * 100,
+                         share.get(C.REGIME_SIDE, 0) * 100,
+                         share.get(C.REGIME_BULL, 0) * 100), flush=True)
 
-    # v10: 시장 필터 — 지수가 N일선 아래인 날은 신규 진입을 쉰다
+    # v12: 시장 필터 — 시장별로 다른 기준선. 해당 지수가 기준선 아래면 그 시장
+    # 종목의 신규 진입만 막는다 (코스피 60일선 / 코스닥 120일선).
     market_open = None
     if C.MARKET_FILTER:
-        p = os.path.join(C.INDEX_DIR, "%s.csv" % C.MARKET_FILTER_INDEX)
-        mi = pd.read_csv(p, parse_dates=["date"]).sort_values("date").set_index("date")
-        ma = mi["close"].rolling(C.MARKET_FILTER_MA).mean()
-        ok = (mi["close"] >= ma).reindex(days)
-        market_open = ok.fillna(False).values.astype(bool)
-        print("[시장필터] %s %d일선 기준 — 진입 허용 %d일 / 중단 %d일 (%.0f%% 중단)"
-              % (C.MARKET_FILTER_INDEX, C.MARKET_FILTER_MA, market_open.sum(),
-                 (~market_open).sum(), (~market_open).mean() * 100), flush=True)
+        market_open = {}
+        for sym, ma_len in C.MARKET_FILTER_MA.items():
+            p = os.path.join(C.INDEX_DIR, "%s.csv" % sym)
+            mi = pd.read_csv(p, parse_dates=["date"]).sort_values("date").set_index("date")
+            ma = mi["close"].rolling(ma_len).mean()
+            ok = (mi["close"] >= ma).reindex(days).fillna(False).values.astype(bool)
+            market_open[sym] = ok
+            print("[시장필터] %-6s %3d일선 — 진입 허용 %d일 / 중단 %d일 (%.0f%% 중단)"
+                  % (sym, ma_len, ok.sum(), (~ok).sum(), (~ok).mean() * 100), flush=True)
 
     total_sig = sum(len(v) for v in signal_by_day.values())
     print("[패널] 데이터 보유 %d종목 -> 시그널 발생 %d종목 / 거래일 %d일 (%s ~ %s)"
@@ -155,7 +186,7 @@ def main():
                          market_open=market_open)
     eq, tr = bt.run()
     if C.MARKET_FILTER:
-        print("[시장필터] 진입을 건너뛴 날 %d일" % bt.skipped_days, flush=True)
+        print("[시장필터] 필터로 차단된 시그널 %d건" % bt.blocked_signals, flush=True)
     print("[타이밍] bt.run() 완료 (%.1fs)" % (time.time() - t1), flush=True)
 
     # ---------------- 결과 저장 ----------------

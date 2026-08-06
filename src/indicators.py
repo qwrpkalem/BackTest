@@ -71,6 +71,9 @@ def add_indicators(df):
     # 청산용 20일 이동평균 (당일 포함)
     df["sma20"] = c.rolling(C.MA_EXIT_PERIOD).mean()
 
+    # v12: 시장폭(breadth) 집계용 200일 이동평균
+    df["sma_breadth"] = c.rolling(C.BREADTH_MA).mean()
+
     # RS(상대강도) raw score — 지수 대비 백분위는 prepare.py에서 cross-sectional 계산
     df["rs_raw"] = rs_raw_score(c)
 

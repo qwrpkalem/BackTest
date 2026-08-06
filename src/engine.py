@@ -69,9 +69,10 @@ class Backtest(object):
         self.signal_by_day = signal_by_day  # {di: [code, ...]}
         self.regime_by_index = regime_by_index or {}   # {'KOSPI': ndarray(1~3), ...}
         self.market_of = market_of or {}               # {code: 'KOSPI'|'KOSDAQ'}
-        # v10: 신규 진입을 허용하는 날인지 (코스피가 60일선 위인가). None 이면 항상 허용.
+        # v12: 시장별 신규 진입 허용 여부 {'KOSPI': ndarray(bool), 'KOSDAQ': ...}.
+        # None 이면 항상 허용. 해당 시장이 닫혀 있으면 그 시장 종목만 진입을 막는다.
         self.market_open = market_open
-        self.skipped_days = 0             # 시장 필터로 진입을 건너뛴 날 수
+        self.blocked_signals = 0          # 시장 필터로 걸러진 시그널 수
         self.cash = float(C.INITIAL_CAPITAL)
         self.positions = {}
         self.trades = []
@@ -186,12 +187,15 @@ class Backtest(object):
         v = arr[di]
         return C.REGIME_SIDE if v != v else float(v)   # NaN 방어
 
+    def _entry_allowed(self, code, di):
+        """v12: 종목이 속한 시장이 기준선 위인가 (코스피 60일선 / 코스닥 120일선).
+        보유 포지션의 청산에는 관여하지 않고 신규 진입만 막는다."""
+        if not self.market_open:
+            return True
+        arr = self.market_open.get(self.market_of.get(code))
+        return True if arr is None else bool(arr[di])
+
     def _process_entries(self, di, date, equity):
-        # v10: 시장이 약할 때(코스피 < 60일선)는 신규 진입을 쉰다.
-        # 보유 포지션은 기존 청산 규칙을 그대로 따르므로 여기서만 막으면 된다.
-        if self.market_open is not None and not self.market_open[di]:
-            self.skipped_days += 1
-            return
         slots = C.MAX_POSITIONS - len(self.positions)
         if slots <= 0:
             return
@@ -205,6 +209,9 @@ class Backtest(object):
         cands = []
         for code in sigs:
             if code in self.positions or code not in allowed:
+                continue
+            if not self._entry_allowed(code, di):    # v12: 시장별 진입 차단
+                self.blocked_signals += 1
                 continue
             cands.append((self.panels[code]["value"][di], code))
         if not cands:
