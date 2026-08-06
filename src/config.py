@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v14 (20일선 이탈을 +24% 도달 이후에만)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v15 (v14 + 0.5R 사이징)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -62,11 +62,11 @@ MAX_POSITIONS = 8
 # 1R = (2%/8%)/6 = 자산의 4.1667%. 구성요소 각각 1~3R, 합계 2~6R (최대 투입 25%).
 # ⚠️ 최대 6R(25%)이면 4종목만으로 자산이 소진돼 현금부족이 발생한다(v9 에서 34.1%).
 R_UNIT_PCT = (0.02 / 0.08) / 6      # 0.041667 — 1R
-R_MIN_UNITS = 1              # 각 구성요소의 하한
-R_MAX_UNITS = 3              # 각 구성요소의 상한
-R_STEP = 1                   # 성공/실패 시 증감 폭
-MAX_POSITION_PCT = R_UNIT_PCT * R_MAX_UNITS * 2   # 0.25 — 최대 투입 (6R)
-MAX_LOSS_PCT = MAX_POSITION_PCT * TRAIL_PCT       # 0.02 — Max 2% Rule
+R_MIN_UNITS = 0.5            # 각 구성요소의 하한
+R_MAX_UNITS = 1.5            # 각 구성요소의 상한
+R_STEP = 0.5                 # 성공/실패 시 증감 폭
+MAX_POSITION_PCT = R_UNIT_PCT * R_MAX_UNITS * 2   # 0.125 — 최대 투입 (3R)
+MAX_LOSS_PCT = MAX_POSITION_PCT * TRAIL_PCT       # 0.01 — 실질 Max 1% Rule
 
 # --- v12: 시장 국면 판정을 '시장폭(breadth)' 으로 변경 ---
 #   REGIME_MODE = "breadth" : 종가가 200일선 **아래**인 종목의 비율로 판정 (v12~)
@@ -77,7 +77,7 @@ BREADTH_BULL_MAX = 0.45      # 200일선 아래 비율 < 45%  -> 강세장
 BREADTH_BEAR_MIN = 0.70      # 200일선 아래 비율 > 70%  -> 하락장 (사이는 횡보장)
 REGIME_MA_PERIOD = 200       # (index 모드용) 지수 이동평균
 REGIME_SLOPE_DAYS = 20       # (index 모드용) MA200 기울기 판정 기간
-REGIME_BEAR, REGIME_SIDE, REGIME_BULL = 1, 2, 3   # 각 국면의 R 배정
+REGIME_BEAR, REGIME_SIDE, REGIME_BULL = 0.5, 1.0, 1.5   # 각 국면의 R 배정
 
 # --- v12: 시장 필터 — 시장별로 다른 기준선 ---
 # 코스피 종목은 코스피 60일선, 코스닥 종목은 코스닥 120일선 아래면 신규 진입 중단.
