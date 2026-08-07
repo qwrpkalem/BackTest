@@ -4,6 +4,7 @@
 data/daum/
 data/naver/
 data/index/
+data/investor/
 
 # 파생 캐시 — 유니버스 필터 조건이 바뀌면 자동 재계산됨
 data/universe.pkl
