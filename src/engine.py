@@ -170,14 +170,20 @@ class Backtest(object):
                 if C.TRAILING_STOP:
                     pos.stop = h * (1.0 - C.TRAIL_PCT)
 
-            # v19: 고점권에서 거래량이 터진 장대 음봉 -> 익일 시가 청산 예약
+            # v19: 고점권에서 거래량이 터진 장대 음봉
+            # v22: 종가가 5일선 위면 추세가 살아있다고 보고 팔지 않는다
             if C.BEAR_EXIT and not pos.pending_ma_exit:
                 vma = p["value_ma"][di]
                 atr = p["atr"][di]
-                if (c < o and atr == atr and vma == vma
+                mb = p["sma_bear"][di]
+                trend_broken = (not C.BEAR_MA_PERIOD) or (mb == mb and c < mb)
+                if (c < o and atr == atr and vma == vma and trend_broken
                         and (o - c) >= atr * C.BEAR_BODY_ATR
                         and p["value"][di] >= vma * C.BEAR_VOL_MULT
                         and h >= pos.highest * C.BEAR_HIGH_PCT):
+                    if C.EXIT_AT_CLOSE:
+                        self._sell_all(pos, date, c, "BEAR_EXIT")
+                        continue
                     pos.pending_ma_exit = True
                     pos.bear_exit = True
 
@@ -187,6 +193,9 @@ class Backtest(object):
                 continue
             sma = p["sma20"][di]
             if sma == sma and c < sma:    # NaN 아니고 이탈
+                if C.EXIT_AT_CLOSE:       # v22: 신호 당일 종가 청산 (진입과 대칭)
+                    self._sell_all(pos, date, c, "MA20_EXIT")
+                    continue
                 pos.pending_ma_exit = True
 
     def _equity_now(self):

@@ -74,6 +74,10 @@ def add_indicators(df):
     # v12: 시장폭(breadth) 집계용 200일 이동평균
     df["sma_breadth"] = c.rolling(C.BREADTH_MA).mean()
 
+    # v22: 음봉 청산의 추세 확인용 단기 이동평균 (5일선)
+    df["sma_bear"] = (c.rolling(C.BEAR_MA_PERIOD).mean()
+                      if C.BEAR_MA_PERIOD else pd.Series(np.nan, index=c.index))
+
     # RS(상대강도) raw score — 지수 대비 백분위는 prepare.py에서 cross-sectional 계산
     df["rs_raw"] = rs_raw_score(c)
 

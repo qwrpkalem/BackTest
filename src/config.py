@@ -74,10 +74,18 @@ MA_EXIT_AFTER_TP = False
 #   ③ 거래량 터짐 : 거래대금 >= 20일 평균 x BEAR_VOL_MULT
 #   ④ 고점권      : 당일 고가 >= 보유 중 최고가 x BEAR_HIGH_PCT
 # ⚠️ 아래 숫자는 조작화한 값이다(장대·고점권의 표준 정의가 있는 게 아님).
-BEAR_EXIT = True             # v19
+BEAR_EXIT = True             # v19~
 BEAR_BODY_ATR = 1.0
 BEAR_VOL_MULT = 2.0
 BEAR_HIGH_PCT = 0.97
+# v22: 음봉이 나와도 종가가 5일선 위면 추세가 살아있다고 보고 홀딩한다.
+#      추세를 길게 가져가기 위한 안전장치. (0 이면 이 조건을 쓰지 않음)
+BEAR_MA_PERIOD = 0           # v22 검증 결과 기각 (0 = 미사용)
+
+# v22: 청산 체결 시점. 진입이 '신호 당일 종가'이므로 청산도 대칭으로 맞춘다.
+#   True  면 신호 당일 종가에 청산 (v22~)
+#   False 면 익일 시가에 청산 (v6~v21)
+EXIT_AT_CLOSE = False        # v22 검증 결과 기각 (익일 시가 유지)
 
 # ---------------- 자금 관리 (§5) ----------------
 INITIAL_CAPITAL = 100_000_000
