@@ -123,6 +123,7 @@ def build_panels(codes, verbose=True):
             "atr": d["atr"].values.astype(np.float64),          # v19 장대 판정
             "value_ma": d["value_ma"].values.astype(np.float64),  # v19 거래량 판정
             "sma_bear": d["sma_bear"].values.astype(np.float64),   # v22 5일선
+            "rs_raw": d["rs_raw"].values.astype(np.float64),        # v25 진입 우선순위
             "valid": d["close"].notna().values,
         }
         for di in idx:

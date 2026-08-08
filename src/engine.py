@@ -185,7 +185,7 @@ class Backtest(object):
                         and (o - c) >= atr * C.BEAR_BODY_ATR
                         and p["value"][di] >= vma * C.BEAR_VOL_MULT
                         and h >= pos.highest * C.BEAR_HIGH_PCT):
-                    if C.EXIT_AT_CLOSE:
+                    if C.BEAR_EXIT_AT_CLOSE:      # v25: 당일 종가 즉시 청산
                         self._sell_all(pos, date, c, "BEAR_EXIT")
                         continue
                     pos.pending_ma_exit = True
@@ -244,7 +244,12 @@ class Backtest(object):
             if not self._entry_allowed(code, di):    # v12: 시장별 진입 차단
                 self.blocked_signals += 1
                 continue
-            cands.append((self.panels[code]["value"][di], code))
+            # v25: 우선순위 기준 — RS 높은 순 / 거래대금 큰 순
+            key = (self.panels[code]["rs_raw"][di] if C.ENTRY_PRIORITY == "rs"
+                   else self.panels[code]["value"][di])
+            if key != key:                        # NaN 방어
+                key = -1e18
+            cands.append((key, code))
         if not cands:
             return
         cands.sort(reverse=True)          # 거래대금 큰 순

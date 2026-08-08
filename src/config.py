@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v24 (v19 + 부분익절 제거)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v26 (RS 우선순위)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -32,6 +32,11 @@ ATR_PERIOD = 14              # Wilder ATR
 VALUE_MA_PERIOD = 20         # 거래대금 이동평균 기간 (당일 제외)
 VALUE_MULTIPLE = 1.3         # 거래대금 >= 20일평균 x 이 값 (v8~ 1.3 확정)
 UPPER_LIMIT_PCT = 0.295      # 상한가 판정 (+29.5% 이상 마감 시 제외)
+
+# v25: 후보가 빈 슬롯보다 많을 때 무엇을 먼저 살지
+#   "rs"    : RS 수치가 높은 순 (v25~)
+#   "value" : 거래대금이 큰 순  (v1~v24)
+ENTRY_PRIORITY = "rs"
 
 # --- v16~v18: 투자자 매수 연속성 ---
 # 최근 INST_WINDOW 거래일(당일 포함) 중 순매수(>0)인 날이 INST_MIN_DAYS 이상.
@@ -82,10 +87,14 @@ BEAR_HIGH_PCT = 0.97
 #      추세를 길게 가져가기 위한 안전장치. (0 이면 이 조건을 쓰지 않음)
 BEAR_MA_PERIOD = 0           # v22 검증 결과 기각 (0 = 미사용)
 
-# v22: 청산 체결 시점. 진입이 '신호 당일 종가'이므로 청산도 대칭으로 맞춘다.
-#   True  면 신호 당일 종가에 청산 (v22~)
-#   False 면 익일 시가에 청산 (v6~v21)
-EXIT_AT_CLOSE = False        # v22 검증 결과 기각 (익일 시가 유지)
+# v22: 20일선 이탈의 청산 체결 시점.
+#   True  면 신호 당일 종가 / False 면 익일 시가
+#   v22 에서 True 를 검증했으나 회전이 빨라져 성과가 나빠졌다 -> False 유지
+EXIT_AT_CLOSE = False
+
+# v25: 고점권 대량 음봉만 '당일 종가' 청산. 급락 신호이므로 하루를 기다리지 않는다.
+#   (20일선 이탈은 위 EXIT_AT_CLOSE 를 따르며 익일 시가 그대로)
+BEAR_EXIT_AT_CLOSE = False   # v25 검증 결과 기각 — 익일 시가가 우세
 
 # ---------------- 자금 관리 (§5) ----------------
 INITIAL_CAPITAL = 100_000_000
