@@ -94,7 +94,7 @@ TRAIL_AFTER_TP_PCT = 0.08    # 부분익절 이후 고점 대비 손절폭
 #   ③ 거래량 터짐 : 거래대금 >= 20일 평균 x BEAR_VOL_MULT
 #   ④ 고점권      : 당일 고가 >= 보유 중 최고가 x BEAR_HIGH_PCT
 # ⚠️ 아래 숫자는 조작화한 값이다(장대·고점권의 표준 정의가 있는 게 아님).
-BEAR_EXIT = True             # v19~
+BEAR_EXIT = True             # v19~ (v34 에서 제거 검증 -> 기각, 단 효과는 IS 편중)
 BEAR_BODY_ATR = 1.0
 BEAR_VOL_MULT = 2.0
 BEAR_HIGH_PCT = 0.97
