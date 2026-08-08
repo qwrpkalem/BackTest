@@ -155,12 +155,16 @@ class Backtest(object):
                                "BEAR_EXIT" if pos.bear_exit else "MA20_EXIT")
                 continue
 
+            # v33: 부분익절 이후 잔량은 트레일링으로 끌고 가므로 청산 사유도 달라진다.
+            trailing_now = C.TRAILING_STOP or (C.TRAIL_AFTER_TP and pos.partial_done)
             S = pos.stop
             if o <= S:
-                self._sell_all(pos, date, o, self._gap_reason)
+                self._sell_all(pos, date, o,
+                               "TRAIL_GAP" if trailing_now else self._gap_reason)
                 continue
             if l <= S:
-                self._sell_all(pos, date, S, self._intra_reason)
+                self._sell_all(pos, date, S,
+                               "TRAIL_INTRA" if trailing_now else self._intra_reason)
                 continue
 
             if (not pos.partial_done) and h >= pos.tp_px:
@@ -177,6 +181,13 @@ class Backtest(object):
                 pos.highest = h
                 if C.TRAILING_STOP:
                     pos.stop = h * (1.0 - C.TRAIL_PCT)
+
+            # v33: +24% 부분익절을 마친 뒤에는 잔량을 고점 대비 트레일링으로 끌고 간다.
+            #   진입가 -8% 고정손절은 '먹은 걸 다 돌려주는' 구간을 못 막고,
+            #   v27 의 본전(0%) 고정은 되돌림 한 번에 잘려 큰 추세를 놓쳤다.
+            #   손절선은 내려가지 않는다(max).
+            if C.TRAIL_AFTER_TP and pos.partial_done:
+                pos.stop = max(pos.stop, pos.highest * (1.0 - C.TRAIL_AFTER_TP_PCT))
 
             # v19: 고점권에서 거래량이 터진 장대 음봉
             # v22: 종가가 5일선 위면 추세가 살아있다고 보고 팔지 않는다
