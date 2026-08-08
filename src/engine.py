@@ -165,6 +165,10 @@ class Backtest(object):
 
             if (not pos.partial_done) and h >= pos.tp_px:
                 self._sell_partial(pos, pos.tp_px)
+                # v27: +24% 도달 -> 손절선을 본전으로 올린다.
+                # 손절 판정(위)은 이미 끝났으므로 다음 거래일부터 유효하다.
+                if C.BREAKEVEN_AFTER_TP:
+                    pos.stop = pos.entry_px * (1.0 + C.BREAKEVEN_PCT)
 
             # 최고가는 항상 갱신한다(v19 고점권 판정에 필요). 손절선을 따라
             # 올리는 것은 TRAILING_STOP 일 때만 — 트레일링은 상승 중 정상적인
