@@ -64,6 +64,7 @@ def build_panels(codes, verbose=True):
     if not rs_enabled:
         print("[경고] 지수 데이터가 없어 RS 필터가 적용되지 않습니다.", flush=True)
 
+    n_flow_before = n_flow_after = 0
     panels, signal_by_day = {}, {}
     # v12: 시장폭(breadth) 집계 — 종가가 200일선 아래인 종목 수 / 유효 종목 수
     below = np.zeros(len(days))
@@ -89,7 +90,26 @@ def build_panels(codes, verbose=True):
             rs_ok = (d["rs_raw"] >= bench_series).fillna(False).values
         else:
             rs_ok = np.ones(len(days), dtype=bool)   # RS 데이터 없으면 필터 미적용
-        idx = np.flatnonzero(base & rs_ok)
+        # v16~v18: 투자자 매수 연속성 (최근 N일 중 M일 이상 순매수)
+        if C.INST_FILTER:
+            ipath = os.path.join(C.INVESTOR_DIR, "%s.csv" % code)
+            if os.path.exists(ipath):
+                iv = (pd.read_csv(ipath, parse_dates=["date"])
+                        .set_index("date").reindex(days))
+                cnt_i = (iv["inst_total"] > 0).rolling(C.INST_WINDOW).sum()
+                cnt_f = (iv["fin_invest"] > 0).rolling(C.INST_WINDOW).sum()
+                ok_i = cnt_i >= C.INST_MIN_DAYS
+                ok_f = cnt_f >= C.INST_MIN_DAYS
+                flow_ok = {"inst": ok_i, "fin": ok_f}.get(C.INST_MODE, ok_i & ok_f)
+                flow_ok = flow_ok.fillna(False).values
+            else:
+                flow_ok = np.zeros(len(days), dtype=bool)   # 데이터 없으면 진입 불가
+        else:
+            flow_ok = np.ones(len(days), dtype=bool)
+
+        n_flow_before += int((base & rs_ok).sum())
+        idx = np.flatnonzero(base & rs_ok & flow_ok)
+        n_flow_after += int(idx.size)
         if idx.size == 0:
             continue                     # 매수 후보가 될 일이 없는 종목
 
@@ -158,6 +178,11 @@ def build_panels(codes, verbose=True):
             market_open[sym] = ok
             print("[시장필터] %-6s %3d일선 — 진입 허용 %d일 / 중단 %d일 (%.0f%% 중단)"
                   % (sym, ma_len, ok.sum(), (~ok).sum(), (~ok).mean() * 100), flush=True)
+
+    if C.INST_FILTER and n_flow_before:
+        print("[수급필터] %s 최근 %d일 중 %d일 이상 순매수 — %d건 -> %d건 (%.1f%% 차단)"
+              % (C.INST_MODE, C.INST_WINDOW, C.INST_MIN_DAYS, n_flow_before, n_flow_after,
+                 (1 - n_flow_after / n_flow_before) * 100), flush=True)
 
     total_sig = sum(len(v) for v in signal_by_day.values())
     print("[패널] 데이터 보유 %d종목 -> 시그널 발생 %d종목 / 거래일 %d일 (%s ~ %s)"

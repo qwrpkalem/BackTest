@@ -33,10 +33,14 @@ VALUE_MA_PERIOD = 20         # 거래대금 이동평균 기간 (당일 제외)
 VALUE_MULTIPLE = 1.3         # 거래대금 >= 20일평균 x 이 값 (v8~ 1.3 확정)
 UPPER_LIMIT_PCT = 0.295      # 상한가 판정 (+29.5% 이상 마감 시 제외)
 
-# --- v16: 기관 매수 연속성 ---
-# 최근 INST_WINDOW 거래일(당일 포함) 중 기관 순매수(>0)인 날이 INST_MIN_DAYS 이상.
+# --- v16~v18: 투자자 매수 연속성 ---
+# 최근 INST_WINDOW 거래일(당일 포함) 중 순매수(>0)인 날이 INST_MIN_DAYS 이상.
 # 중간에 하루 순매도가 섞여도 추세를 인정하기 위해 '연속'이 아니라 '중 N일'로 본다.
-INST_FILTER = True
+#   INST_MODE = "inst" : 기관계        (v16)
+#               "fin"  : 금융투자       (v17)
+#               "both" : 둘 다 만족     (v18)
+INST_FILTER = False          # v12 는 False (v16~v18 검증 결과 기각)
+INST_MODE = "both"
 INST_WINDOW = 5              # 관찰 기간 (거래일)
 INST_MIN_DAYS = 3            # 이 중 순매수여야 하는 최소 일수
 
