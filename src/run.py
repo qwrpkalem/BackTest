@@ -120,6 +120,8 @@ def build_panels(codes, verbose=True):
             "close": d["close"].values.astype(np.float64),
             "sma20": d["sma20"].values.astype(np.float64),
             "value": np.nan_to_num(d["value"].values.astype(np.float64)),
+            "atr": d["atr"].values.astype(np.float64),          # v19 장대 판정
+            "value_ma": d["value_ma"].values.astype(np.float64),  # v19 거래량 판정
             "valid": d["close"].notna().values,
         }
         for di in idx:

@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v12 (시장폭 국면 + 시장별 필터, 1R)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v19 (v12 + 고점권 대량 음봉 청산)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -65,6 +65,19 @@ MA_EXIT_PERIOD = 20          # 종가가 20일선 하향 이탈 시 전량
 #   True  면 +24% 에 닿기 전에는 20일선을 깨도 홀딩하고 -8% 고정손절만 유효
 #   False 면 도달 여부와 무관하게 20일선 이탈 시 청산 (v6~v13)
 MA_EXIT_AFTER_TP = False
+
+# --- v19: 고점권 대량 음봉 청산 ---
+# 추세 종료 신호를 20일선 이탈 하나에만 의존하지 않고, "고점에서 거래량이 터진
+# 장대 음봉"을 추가 청산 신호로 본다. 네 조건을 모두 만족하면 익일 시가 전량 청산.
+#   ① 음봉        : 종가 < 시가
+#   ② 장대        : (시가 - 종가) >= ATR(14) x BEAR_BODY_ATR
+#   ③ 거래량 터짐 : 거래대금 >= 20일 평균 x BEAR_VOL_MULT
+#   ④ 고점권      : 당일 고가 >= 보유 중 최고가 x BEAR_HIGH_PCT
+# ⚠️ 아래 숫자는 조작화한 값이다(장대·고점권의 표준 정의가 있는 게 아님).
+BEAR_EXIT = True             # v19
+BEAR_BODY_ATR = 1.0
+BEAR_VOL_MULT = 2.0
+BEAR_HIGH_PCT = 0.97
 
 # ---------------- 자금 관리 (§5) ----------------
 INITIAL_CAPITAL = 100_000_000

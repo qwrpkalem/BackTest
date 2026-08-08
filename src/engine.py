@@ -27,7 +27,7 @@ class Position(object):
     __slots__ = ("code", "entry_date", "entry_px", "qty", "qty_init", "highest",
                  "stop", "tp_px", "partial_done", "pending_ma_exit",
                  "cost_total", "proceeds_total", "last_close",
-                 "entry_r", "regime_r", "streak_r", "capped")
+                 "entry_r", "regime_r", "streak_r", "capped", "bear_exit")
 
     def __init__(self, code, date, px, qty, cost,
                  entry_r=0, regime_r=0, streak_r=0, capped=False):
@@ -48,6 +48,7 @@ class Position(object):
         self.regime_r = regime_r
         self.streak_r = streak_r
         self.capped = capped              # 현금 부족으로 목표 R 을 못 채웠는가
+        self.bear_exit = False            # v19: 고점권 대량 음봉으로 청산 예약됐는가
 
 
 def sell_amount(price, qty):
@@ -146,7 +147,8 @@ class Backtest(object):
             pos.last_close = c
 
             if pos.pending_ma_exit:
-                self._sell_all(pos, date, o, "MA20_EXIT")
+                self._sell_all(pos, date, o,
+                               "BEAR_EXIT" if pos.bear_exit else "MA20_EXIT")
                 continue
 
             S = pos.stop
@@ -160,12 +162,24 @@ class Backtest(object):
             if (not pos.partial_done) and h >= pos.tp_px:
                 self._sell_partial(pos, pos.tp_px)
 
-            # v6~: TRAILING_STOP=False 이면 손절선을 진입가 기준 -8% 에 고정한다.
-            # 트레일링은 고점 대비로 따라 올라가 정상적인 조정에도 청산돼 '수익도
-            # 짧게' 잘라내므로, 손실만 짧게 자르고 수익은 20일선 이탈까지 끌고 간다.
-            if C.TRAILING_STOP and h > pos.highest:
+            # 최고가는 항상 갱신한다(v19 고점권 판정에 필요). 손절선을 따라
+            # 올리는 것은 TRAILING_STOP 일 때만 — 트레일링은 상승 중 정상적인
+            # 조정에도 청산돼 '수익도 짧게' 잘라내므로 v6 부터 끈 상태다.
+            if h > pos.highest:
                 pos.highest = h
-                pos.stop = h * (1.0 - C.TRAIL_PCT)
+                if C.TRAILING_STOP:
+                    pos.stop = h * (1.0 - C.TRAIL_PCT)
+
+            # v19: 고점권에서 거래량이 터진 장대 음봉 -> 익일 시가 청산 예약
+            if C.BEAR_EXIT and not pos.pending_ma_exit:
+                vma = p["value_ma"][di]
+                atr = p["atr"][di]
+                if (c < o and atr == atr and vma == vma
+                        and (o - c) >= atr * C.BEAR_BODY_ATR
+                        and p["value"][di] >= vma * C.BEAR_VOL_MULT
+                        and h >= pos.highest * C.BEAR_HIGH_PCT):
+                    pos.pending_ma_exit = True
+                    pos.bear_exit = True
 
             # v14: MA_EXIT_AFTER_TP 면 +24% 에 닿기 전까지는 20일선을 깨도 홀딩한다.
             # 이 경우 유일한 청산 수단은 진입가 -8% 고정손절이다.
