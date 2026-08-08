@@ -44,8 +44,8 @@ ENTRY_PRIORITY = "rs"
 #   INST_MODE = "inst" : 기관계        (v16)
 #               "fin"  : 금융투자       (v17)
 #               "both" : 둘 다 만족     (v18)
-INST_FILTER = False          # v12 는 False (v16~v18 검증 결과 기각)
-INST_MODE = "both"
+INST_FILTER = False           # v16~v18·v30 검증 결과 기각 (조일수록 단조 악화)
+INST_MODE = "inst"
 INST_WINDOW = 5              # 관찰 기간 (거래일)
 INST_MIN_DAYS = 3            # 이 중 순매수여야 하는 최소 일수
 
