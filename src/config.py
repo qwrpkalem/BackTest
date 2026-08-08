@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v19 (v12 + 고점권 대량 음봉 청산)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v24 (v19 + 부분익절 제거)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -59,7 +59,7 @@ RS_QUARTER_DAYS = 63
 TRAILING_STOP = False        # True 면 고점 대비(v1~v5), False 면 진입가 대비 고정
 TRAIL_PCT = 0.08             # 손절폭 -8%
 PARTIAL_TP_PCT = 0.24        # +24% 도달 시
-PARTIAL_TP_RATIO = 0.30      # 보유 수량의 30% 익절
+PARTIAL_TP_RATIO = 0.0       # v24: 부분익절 없음 (0 이면 +24% 도달 기록만 하고 매도 안 함)
 MA_EXIT_PERIOD = 20          # 종가가 20일선 하향 이탈 시 전량 (7·15·25·30·40일 검증 후 최적)
 # v14: 20일선 이탈 청산을 '+24% 도달 이후'에만 적용한다.
 #   True  면 +24% 에 닿기 전에는 20일선을 깨도 홀딩하고 -8% 고정손절만 유효

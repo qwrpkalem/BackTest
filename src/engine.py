@@ -127,8 +127,12 @@ class Backtest(object):
 
     def _sell_partial(self, pos, price):
         q = int(pos.qty_init * C.PARTIAL_TP_RATIO)
+        # 팔 수량이 0이거나 잔량 전체 이상이면 매도하지 않고 도달 사실만 기록한다.
+        #   - RATIO=0 (v24~): 부분익절을 쓰지 않음. +24% 도달 기록은 유지해야
+        #     연속성 R 판정(success)이 정상 동작한다
+        #   - RATIO=1.0 은 '전량 익절'이 아니라 '익절 안 함'이 된다(잔량 전체이므로)
         if q <= 0 or q >= pos.qty:
-            pos.partial_done = True       # 수량이 너무 적으면 부분익절 생략
+            pos.partial_done = True
             return
         amt = sell_amount(price, q)
         self.cash += amt
