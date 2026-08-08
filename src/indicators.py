@@ -87,7 +87,7 @@ def add_indicators(df):
 
 
 def add_signal(df):
-    """§3-1 진입 시그널 3조건 AND + 상한가 제외 (RS 조건 제외 — signal_base).
+    """§3-1 진입 시그널 3조건 AND + 극단 급등일 제외 (RS 조건 제외 — signal_base).
 
     RS는 같은 날 다른 종목/지수와 비교해야 하는 cross-sectional 조건이라
     종목 단독으로는 계산할 수 없다. prepare.py가 signal_base & rs_ok로
@@ -96,7 +96,8 @@ def add_signal(df):
     cond_high = df["high"] > df["high_250"]                         # 52주 신고가(장중)
     cond_atr = df["gain"] >= df["atr"]                              # ATR 이상 상승
     cond_val = df["value"] >= df["value_ma"] * C.VALUE_MULTIPLE      # 거래대금 급증
-    not_limit = (df["close"] / df["prev_close"] - 1.0) < C.UPPER_LIMIT_PCT
+    # v35: 이름을 바로잡았다 — 상한가 판정이 아니라 극단 급등일 제외다.
+    not_limit = (df["close"] / df["prev_close"] - 1.0) < C.EXTREME_GAIN_PCT
     enough_bars = df["bars"] >= C.MIN_LISTED_DAYS
 
     df["signal_base"] = (cond_high & cond_atr & cond_val & not_limit
