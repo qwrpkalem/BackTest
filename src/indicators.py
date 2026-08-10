@@ -86,6 +86,29 @@ def add_indicators(df):
     df["rs_raw"] = rs_raw_score(c)
 
     # 상장 경과 거래일
+    # --- v45: 베이스(건전한 조정) 판정 ---
+    # 책의 매매법은 "그냥 신고가"가 아니라 **큰 상승 -> 건전한 조정 -> 재돌파** 다.
+    # 조정 구간(베이스) 없이 계속 신고가를 갱신하며 오르는 종목은 사지 않는다.
+    #   ① 베이스 길이 : 직전 신고가 이후 BASE_MIN_DAYS 거래일 이상 경과
+    #   ② 조정 깊이   : 룩백 구간의 (고점-저점)/고점 이 BASE_MAX_DEPTH 이내 (건전한 조정)
+    #   ③ 선행 상승   : 베이스 시작 전 PRIOR_GAIN_DAYS 동안 PRIOR_GAIN_PCT 이상 상승
+    n = len(df)
+    idx = np.arange(n)
+    base = c if C.HIGH_BASIS == "close" else h
+    was_high = (base >= base.shift(1).rolling(C.HIGH_LOOKBACK).max()).fillna(False)
+    last_hi = pd.Series(np.where(was_high.values, idx, np.nan), index=df.index).ffill()
+    df["base_days"] = idx - last_hi.shift(1)          # 직전 신고가 이후 경과 거래일
+
+    # 조정 깊이는 '최근 조정 구간'(BASE_WINDOW)에서 잰다. 룩백 전체(250일)로 재면
+    # 거의 모든 종목이 35% 를 넘어 시그널이 사라진다.
+    W = C.BASE_WINDOW
+    win_hi = base.shift(1).rolling(W).max()
+    win_lo = base.shift(1).rolling(W).min()
+    df["base_depth"] = 1.0 - win_lo / win_hi
+
+    # 선행 상승은 베이스가 시작되기 '전' 구간에서 잰다.
+    df["prior_gain"] = c.shift(W) / c.shift(W + C.PRIOR_GAIN_DAYS) - 1.0
+
     df["bars"] = np.arange(len(df))
     return df
 
@@ -105,8 +128,16 @@ def add_signal(df):
     not_limit = (df["close"] / df["prev_close"] - 1.0) < C.EXTREME_GAIN_PCT
     enough_bars = df["bars"] >= C.MIN_LISTED_DAYS
 
+    # v45: 베이스 조건 — 큰 상승 -> 건전한 조정 -> 재돌파
+    if C.BASE_FILTER:
+        cond_base = ((df["base_days"] >= C.BASE_MIN_DAYS)
+                     & (df["base_depth"] <= C.BASE_MAX_DEPTH)
+                     & (df["prior_gain"] >= C.PRIOR_GAIN_PCT)).fillna(False)
+    else:
+        cond_base = True
+
     df["signal_base"] = (cond_high & cond_atr & cond_val & not_limit
-                         & enough_bars).fillna(False)
+                         & enough_bars & cond_base).fillna(False)
     return df
 
 
