@@ -45,8 +45,19 @@ def wilder_atr(high, low, close, period):
 
 
 def rs_raw_score(close, q=C.RS_QUARTER_DAYS):
-    """O'Neil RS Rating의 raw score. 최근 분기 종가비에 2배 가중, 이전 3개
-    분기는 1배씩. 백분위 변환은 종목 간 비교가 필요해 여기서는 하지 않는다."""
+    """상대강도 raw score. 종목과 지수에 같은 함수를 쓰므로, 진입 조건
+    '종목 rs_raw >= 지수 rs_raw' 는 두 모드에서 각각 이런 뜻이 된다.
+
+      RS_MODE="ratio" (v47~, 책 기준)
+          rs_raw = 최근 RS_RATIO_DAYS 수익률.
+          비교하면 '종목 수익률 / 지수 수익률 >= 1' 과 동치다.
+
+      RS_MODE="oneil" (v2~v46)
+          최근 분기 종가비에 2배 가중 + 이전 3개 분기 1배씩.
+    """
+    if C.RS_MODE == "ratio":
+        return close / close.shift(C.RS_RATIO_DAYS)
+
     s1 = close / close.shift(q)
     s2 = close.shift(q) / close.shift(2 * q)
     s3 = close.shift(2 * q) / close.shift(3 * q)

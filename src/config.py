@@ -91,6 +91,11 @@ INDEX_DIR = os.path.join(DATA, "index")
 INVESTOR_DIR = os.path.join(DATA, "investor")   # v16: 투자자별(기관/외국인) 순매매
 MARKET_INDEX = {"STK": "KOSPI", "KSQ": "KOSDAQ"}   # 종목 시장별 벤치마크 지수
 RS_QUARTER_DAYS = 63
+# v47: 상대강도 정의
+#   "oneil" : (직전 분기 종가비 x2) + 2~4분기 전 종가비   (v2~v46)
+#   "ratio" : 종목 수익률 / 지수 수익률                    (책 기준)
+RS_MODE = "oneil"            # v47 에서 "ratio"(책 기준) 검증 -> 기각
+RS_RATIO_DAYS = 63           # ratio 모드에서 수익률을 재는 기간
 
 # ---------------- 청산 (§4) ----------------
 # v6~: 트레일링을 끄고 손절선을 진입가 기준 -8% 에 고정한다.
