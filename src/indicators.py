@@ -58,6 +58,14 @@ def rs_raw_score(close, q=C.RS_QUARTER_DAYS):
     if C.RS_MODE == "ratio":
         return close / close.shift(C.RS_RATIO_DAYS)
 
+    if C.RS_MODE == "weighted":
+        # v48 (책): 12M / 6M / 3M 의 흐름을 가중평균한다. 최근을 더 무겁게.
+        #   "12M 90 · 6M 50 · 3M 90" = 1년 전 강세 -> 반년 전 조정 -> 최근 재상승
+        w12, w6, w3 = C.RS_WEIGHTS
+        return (w12 * (close / close.shift(C.RS_M12))
+                + w6 * (close / close.shift(C.RS_M6))
+                + w3 * (close / close.shift(C.RS_M3)))
+
     s1 = close / close.shift(q)
     s2 = close.shift(q) / close.shift(2 * q)
     s3 = close.shift(2 * q) / close.shift(3 * q)
