@@ -66,7 +66,7 @@ def measure(quick=False, verbose=True):
         sigset = {i: set(cs) for i, cs in sig.items()}
         openmap = (mmap, mopen)
 
-    rows, hit_in, hit_out = [], 0, 0
+    rows, hit_in, hit_out, hit_stock = [], 0, 0, 0
     for nm, ed, xd, ret in BLOG:
         code = name2code.get(nm)
         di = dmap.get(ed)
@@ -86,6 +86,13 @@ def measure(quick=False, verbose=True):
 
         sg = "?" if quick or di is None else ("O" if code in sigset.get(di, set()) else "X")
 
+        # 종목 포착: 블로그 보유기간과 겹치게 그 종목을 들고 있었는가
+        #   같은 날이 아니어도 '그 상승을 먹었는가'를 보는 지표
+        ov = tr[(tr["name"] == nm) & (tr["entry_date"] <= pd.Timestamp(xd))
+                & (tr["exit_date"] >= pd.Timestamp(ed))]
+        if len(ov):
+            hit_stock += 1
+
         m = tr[(tr["name"] == nm) & (tr["entry_date"] == pd.Timestamp(ed))]
         entered = len(m) > 0
         exit_ok = ""
@@ -96,6 +103,9 @@ def measure(quick=False, verbose=True):
             if gap <= 1:
                 hit_out += 1
             exit_ok = "%s (%+d일)" % (got.date(), (got - pd.Timestamp(xd)).days)
+        if not entered and len(ov):
+            o = ov.iloc[0]
+            exit_ok = "%s 진입 %+.0f%%" % (o["entry_date"].date(), o["ret"] * 100)
         rows.append((nm, ed, in_uni, mkt, sg, "O" if entered else "X", exit_ok, ret))
 
     if verbose:
@@ -111,9 +121,10 @@ def measure(quick=False, verbose=True):
         print("  단계별 통과   유니버스 {}/10  ->  시장필터 {}/10  ->  시그널 {}/10"
               "  ->  진입 {}/10  ->  청산±1일 {}/10".format(
                   n(2), n(3), n(4), hit_in, hit_out))
+        print("  종목 포착 {}/10  — 같은 날이 아니어도 그 상승 구간을 보유했는가".format(hit_stock))
         print("  ※ 진입은 슬롯 8개 + RS 우선순위 경쟁을 통과해야 하므로,"
               " 조건 개선의 진척은 '시그널' 칸으로 본다.")
-    return hit_in, hit_out, rows
+    return hit_in, hit_out, hit_stock, rows
 
 
 if __name__ == "__main__":

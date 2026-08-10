@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v41 (일치 트랙: 시총·시장필터 제거)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v26 (RS 우선순위)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -19,7 +19,7 @@ TEST_END = "2026-07-31"
 
 # ---------------- 유니버스 (§1) ----------------
 MARKETS = ("STK", "KSQ")     # KOSPI, KOSDAQ (KONEX 제외)
-MIN_MARKET_CAP = 0                   # v40~ 일치 트랙: 유니버스가 10건 중 7건을 막고 있었다
+MIN_MARKET_CAP = 1_000_000_000_000   # 1조원 (v3·v31·v36·v37 검증 — 3천억~2조 7개 지점에서 최적)
 MIN_PRICE = 1_000                    # 1,000원
 MIN_LISTED_DAYS = 250                # 상장 250거래일 미만 제외
 UNIVERSE_REBAL = "M"                 # 매월 말 유니버스 재구성
@@ -34,7 +34,7 @@ HIGH_LOOKBACK = 250          # 신고가 룩백 (당일 제외)
 # 블로그가 잡은 매매 중 우리가 놓친 것들이 이 기준 차이로 설명된다:
 #   원익홀딩스 2025-08-25  고가기준 -1.35% 탈락 / 종가기준 +1.25% 통과
 #   금양      2022-07-22  고가기준 -7.85% 탈락 / 종가기준 120일이면 +3.37% 통과
-HIGH_BASIS = "high"           # v38 에서 "close" 검증 -> 기각 (시그널은 고쳐졌으나 현금 병목에 막힘)
+HIGH_BASIS = "high"           # v38·v42 에서 "close" 검증 -> 채택 안 함 (일치 트랙 참조)
 ATR_PERIOD = 14              # Wilder ATR (7·10·20·30일 검증 후 14가 최적)
 VALUE_MA_PERIOD = 20         # 거래대금 이동평균 기간 (당일 제외)
 VALUE_MULTIPLE = 1.3         # 거래대금 >= 20일평균 x 이 값 (v8~ 1.3 확정)
@@ -132,7 +132,7 @@ BEAR_EXIT_AT_CLOSE = False   # v25 검증 결과 기각 — 익일 시가가 우
 
 # ---------------- 자금 관리 (§5) ----------------
 INITIAL_CAPITAL = 100_000_000
-MAX_POSITIONS = 8                   # v32 에서 12 검증 -> 기각 (집중이 곧 엣지)
+MAX_POSITIONS = 8                   # v32·v44 에서 확대 검증 -> 기각 (집중이 곧 엣지)
 
 # --- v12: Max 2% Rule (R 구성요소 1~3R) ---
 # 1R = (2%/8%)/6 = 자산의 4.1667%. 구성요소 각각 1~3R, 합계 2~6R (최대 투입 25%).
@@ -158,7 +158,7 @@ REGIME_BEAR, REGIME_SIDE, REGIME_BULL = 1, 2, 3   # 각 국면의 R 배정
 # --- v12: 시장 필터 — 시장별로 다른 기준선 ---
 # 코스피 종목은 코스피 60일선, 코스닥 종목은 코스닥 120일선 아래면 신규 진입 중단.
 # 보유 포지션은 기존 청산 규칙(고정손절 / 20일선 이탈)을 그대로 따른다.
-MARKET_FILTER = False               # v41 일치 트랙: 셀바스AI·에스티큐브·금양·HLB 를 막던 관문
+MARKET_FILTER = True
 MARKET_FILTER_MA = {"KOSPI": 60, "KOSDAQ": 120}
 
 # ---------------- 비용 (§6) ----------------
