@@ -75,8 +75,9 @@ def measure(quick=False, verbose=True):
         if uni is not None and code:
             in_uni = "O" if code in uni.get(ed[:7], set()) else "X"
 
-        mkt = "?"
-        if openmap and code:
+        # 시장필터가 꺼져 있으면 '해당없음' — 통과로 센다
+        mkt = "-" if not C.MARKET_FILTER else "?"
+        if C.MARKET_FILTER and openmap and code:
             mm, mo = openmap
             sym = mm.get(code) if isinstance(mm, dict) else None
             # 패널에 없는 종목(유니버스 밖)은 판정 불가 — 'O' 로 오표시하면 안 된다
@@ -106,7 +107,7 @@ def measure(quick=False, verbose=True):
             print("{:<16}{:<12}{:>5}{:>6}{:>6}{:>6}  {:<20}{:>8.0f}%".format(
                 nm, ed, u, mk, sg, en, xo or "-", ret))
         print("-" * 92)
-        n = lambda i: sum(1 for r in rows if r[i] == "O")
+        n = lambda i: sum(1 for r in rows if r[i] in ("O", "-"))
         print("  단계별 통과   유니버스 {}/10  ->  시장필터 {}/10  ->  시그널 {}/10"
               "  ->  진입 {}/10  ->  청산±1일 {}/10".format(
                   n(2), n(3), n(4), hit_in, hit_out))

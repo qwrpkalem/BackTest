@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v26 (RS 우선순위)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v41 (일치 트랙: 시총·시장필터 제거)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -19,7 +19,7 @@ TEST_END = "2026-07-31"
 
 # ---------------- 유니버스 (§1) ----------------
 MARKETS = ("STK", "KSQ")     # KOSPI, KOSDAQ (KONEX 제외)
-MIN_MARKET_CAP = 1_000_000_000_000   # 1조원 (v3·v31·v36·v37 검증 — 3천억~2조 7개 지점에서 최적)
+MIN_MARKET_CAP = 0                   # v40~ 일치 트랙: 유니버스가 10건 중 7건을 막고 있었다
 MIN_PRICE = 1_000                    # 1,000원
 MIN_LISTED_DAYS = 250                # 상장 250거래일 미만 제외
 UNIVERSE_REBAL = "M"                 # 매월 말 유니버스 재구성
@@ -158,7 +158,7 @@ REGIME_BEAR, REGIME_SIDE, REGIME_BULL = 1, 2, 3   # 각 국면의 R 배정
 # --- v12: 시장 필터 — 시장별로 다른 기준선 ---
 # 코스피 종목은 코스피 60일선, 코스닥 종목은 코스닥 120일선 아래면 신규 진입 중단.
 # 보유 포지션은 기존 청산 규칙(고정손절 / 20일선 이탈)을 그대로 따른다.
-MARKET_FILTER = True
+MARKET_FILTER = False               # v41 일치 트랙: 셀바스AI·에스티큐브·금양·HLB 를 막던 관문
 MARKET_FILTER_MA = {"KOSPI": 60, "KOSDAQ": 120}
 
 # ---------------- 비용 (§6) ----------------
