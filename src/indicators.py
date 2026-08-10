@@ -63,7 +63,11 @@ def add_indicators(df):
     df["gain"] = c - df["prev_close"]
 
     # 52주 신고가 기준: 당일 제외 직전 250거래일 최고 '고가' (장중 기준)
-    df["high_250"] = h.shift(1).rolling(C.HIGH_LOOKBACK).max()
+    # v38: 신고가를 무엇으로 재는가 — 장중 고가(v1~v37) 대 종가(v38~)
+    #   "high"  : 직전 N일의 장중 고가 최댓값을 당일 장중 고가가 넘는가
+    #   "close" : 직전 N일의 종가 최댓값을 당일 종가가 넘는가 ("신고가 마감")
+    base = c if C.HIGH_BASIS == "close" else h
+    df["high_250"] = base.shift(1).rolling(C.HIGH_LOOKBACK).max()
 
     # 거래대금 20일 평균: 당일 제외
     df["value_ma"] = df["value"].shift(1).rolling(C.VALUE_MA_PERIOD).mean()
@@ -93,7 +97,8 @@ def add_signal(df):
     종목 단독으로는 계산할 수 없다. prepare.py가 signal_base & rs_ok로
     최종 signal을 만든다.
     """
-    cond_high = df["high"] > df["high_250"]                         # 52주 신고가(장중)
+    # v38: HIGH_BASIS 에 맞춰 같은 축으로 비교한다 (high_250 도 그 축으로 계산됨)
+    cond_high = (df["close"] if C.HIGH_BASIS == "close" else df["high"]) > df["high_250"]
     cond_atr = df["gain"] >= df["atr"]                              # ATR 이상 상승
     cond_val = df["value"] >= df["value_ma"] * C.VALUE_MULTIPLE      # 거래대금 급증
     # v35: 이름을 바로잡았다 — 상한가 판정이 아니라 극단 급등일 제외다.
