@@ -86,28 +86,33 @@ def add_indicators(df):
     df["rs_raw"] = rs_raw_score(c)
 
     # 상장 경과 거래일
-    # --- v45: 베이스(건전한 조정) 판정 ---
-    # 책의 매매법은 "그냥 신고가"가 아니라 **큰 상승 -> 건전한 조정 -> 재돌파** 다.
-    # 조정 구간(베이스) 없이 계속 신고가를 갱신하며 오르는 종목은 사지 않는다.
-    #   ① 베이스 길이 : 직전 신고가 이후 BASE_MIN_DAYS 거래일 이상 경과
-    #   ② 조정 깊이   : 룩백 구간의 (고점-저점)/고점 이 BASE_MAX_DEPTH 이내 (건전한 조정)
-    #   ③ 선행 상승   : 베이스 시작 전 PRIOR_GAIN_DAYS 동안 PRIOR_GAIN_PCT 이상 상승
+    # --- v46: 베이스 돌파 (책 기준) ---
+    # 두 패턴을 **OR** 로 본다. v45 는 전부 AND 로 묶어 시그널이 27배 줄었다.
+    #   보통 매매 : 선행 추세 +50~60% 이상, 조정 베이스는 **길수록 좋다**(깊이 상한 없음),
+    #               조정 중 거래량 감소
+    #   HTF       : 최대 8주 동안 +100% 이상 급등 -> 5일~3주의 짧은 베이스,
+    #               조정 깊이 20% 이내 (가파른 상승이므로 더 타이트하게 본다)
     n = len(df)
     idx = np.arange(n)
-    base = c if C.HIGH_BASIS == "close" else h
-    was_high = (base >= base.shift(1).rolling(C.HIGH_LOOKBACK).max()).fillna(False)
+    bs = c if C.HIGH_BASIS == "close" else h
+
+    # 직전 신고가 이후 경과 거래일 = 베이스 길이
+    was_high = (bs >= bs.shift(1).rolling(C.HIGH_LOOKBACK).max()).fillna(False)
     last_hi = pd.Series(np.where(was_high.values, idx, np.nan), index=df.index).ffill()
-    df["base_days"] = idx - last_hi.shift(1)          # 직전 신고가 이후 경과 거래일
+    df["base_days"] = idx - last_hi.shift(1)
 
-    # 조정 깊이는 '최근 조정 구간'(BASE_WINDOW)에서 잰다. 룩백 전체(250일)로 재면
-    # 거의 모든 종목이 35% 를 넘어 시그널이 사라진다.
-    W = C.BASE_WINDOW
-    win_hi = base.shift(1).rolling(W).max()
-    win_lo = base.shift(1).rolling(W).min()
-    df["base_depth"] = 1.0 - win_lo / win_hi
+    base_hi = bs.shift(1).rolling(C.BASE_WINDOW).max()          # 베이스 고점(피벗)
+    # 선행 추세 상승률 — 추세 저점에서 베이스 고점까지
+    df["trend_gain"] = base_hi / bs.shift(1).rolling(C.TREND_LOOKBACK).min() - 1.0
+    # HTF: 최대 8주 구간에서의 상승률
+    df["htf_gain"] = base_hi / bs.shift(1).rolling(C.HTF_TREND_DAYS).min() - 1.0
+    # HTF 베이스는 짧으므로 깊이도 짧은 구간에서 잰다
+    df["htf_depth"] = 1.0 - bs.shift(1).rolling(C.HTF_BASE_MAX).min() / base_hi
 
-    # 선행 상승은 베이스가 시작되기 '전' 구간에서 잰다.
-    df["prior_gain"] = c.shift(W) / c.shift(W + C.PRIOR_GAIN_DAYS) - 1.0
+    # 조정 중 거래량 감소 — 베이스 구간 평균이 그 이전 구간 평균보다 작은가
+    v = df["value"]
+    df["vol_dry"] = (v.shift(1).rolling(C.BASE_WINDOW).mean()
+                     < v.shift(1 + C.BASE_WINDOW).rolling(C.BASE_WINDOW).mean())
 
     df["bars"] = np.arange(len(df))
     return df
@@ -130,9 +135,15 @@ def add_signal(df):
 
     # v45: 베이스 조건 — 큰 상승 -> 건전한 조정 -> 재돌파
     if C.BASE_FILTER:
-        cond_base = ((df["base_days"] >= C.BASE_MIN_DAYS)
-                     & (df["base_depth"] <= C.BASE_MAX_DEPTH)
-                     & (df["prior_gain"] >= C.PRIOR_GAIN_PCT)).fillna(False)
+        normal = ((df["trend_gain"] >= C.TREND_GAIN_PCT)
+                  & (df["base_days"] >= C.NORMAL_BASE_MIN))
+        if C.VOL_DRYUP:
+            normal = normal & df["vol_dry"]
+        htf = ((df["htf_gain"] >= C.HTF_GAIN_PCT)
+               & (df["base_days"] >= C.HTF_BASE_MIN)
+               & (df["base_days"] <= C.HTF_BASE_MAX)
+               & (df["htf_depth"] <= C.HTF_MAX_DEPTH))
+        cond_base = (normal | (htf if C.HTF_ENABLE else False)).fillna(False)
     else:
         cond_base = True
 

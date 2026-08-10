@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v26 (RS 우선순위)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v46 (베이스 돌파 + 거래량 감소, 전종목)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -19,7 +19,7 @@ TEST_END = "2026-07-31"
 
 # ---------------- 유니버스 (§1) ----------------
 MARKETS = ("STK", "KSQ")     # KOSPI, KOSDAQ (KONEX 제외)
-MIN_MARKET_CAP = 1_000_000_000_000   # 1조원 (v3·v31·v36·v37 검증 — 3천억~2조 7개 지점에서 최적)
+MIN_MARKET_CAP = 0                   # v46: 베이스 조건이 품질을 걸러주므로 시총 필터 불필요
 MIN_PRICE = 1_000                    # 1,000원
 MIN_LISTED_DAYS = 250                # 상장 250거래일 미만 제외
 UNIVERSE_REBAL = "M"                 # 매월 말 유니버스 재구성
@@ -61,12 +61,18 @@ ENTRY_PRIORITY = "rs"
 # 책의 매매법은 "큰 상승 -> 건전한 조정 -> 재돌파" 다. 조정 없이 계속 신고가를
 # 갱신하며 오르는 종목은 제외한다. 아래 숫자는 조작화한 값이며 책의 정확한
 # 기준이 확인되면 교체할 것.
-BASE_FILTER = False          # v45 1차 조작화는 과도하게 빡빡 -> 책 기준 확인 후 재시도
-BASE_WINDOW = 60             # 조정 구간 관찰 기간 (깊이·선행상승 기준점)
-BASE_MIN_DAYS = 25           # 직전 신고가 이후 최소 경과 거래일 (베이스 길이)
-BASE_MAX_DEPTH = 0.35        # 조정 깊이 상한 — 이보다 깊으면 '건전한 조정'이 아님
-PRIOR_GAIN_DAYS = 60         # 선행 상승 측정 기간
-PRIOR_GAIN_PCT = 0.30        # 베이스 직전에 이만큼은 올랐어야 함
+BASE_FILTER = True           # v46: 큰 상승 -> 건전한 조정 -> 재돌파 (책 기준)
+BASE_WINDOW = 60             # 베이스 고점(피벗) 관찰 기간
+TREND_LOOKBACK = 120         # 선행 추세 저점 탐색 기간
+TREND_GAIN_PCT = 0.50        # 보통 매매: 선행 추세 상승률 (책 "평균 50~60% 이상 선호")
+NORMAL_BASE_MIN = 15         # 보통 매매: 최소 베이스 길이 (책 "길수록 좋다")
+VOL_DRYUP = True             # 조정 중 거래량 감소 (책)
+HTF_ENABLE = True            # High Tight Flag 를 별도 패턴으로 인정
+HTF_TREND_DAYS = 40          # 최대 8주
+HTF_GAIN_PCT = 1.00          # 그 안에 +100% 이상
+HTF_BASE_MIN = 5             # 짧게는 5일
+HTF_BASE_MAX = 15            # 길게는 3주
+HTF_MAX_DEPTH = 0.20         # 조정 깊이 20% 이내
 
 # --- v16~v18: 투자자 매수 연속성 ---
 # 최근 INST_WINDOW 거래일(당일 포함) 중 순매수(>0)인 날이 INST_MIN_DAYS 이상.
