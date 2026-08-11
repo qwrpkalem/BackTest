@@ -121,6 +121,9 @@ def build_panels(codes, verbose=True):
             "sma20": d["sma20"].values.astype(np.float64),
             "sma_fast": d["sma_fast"].values.astype(np.float64),
             "sma_slow": d["sma_slow"].values.astype(np.float64),
+            "value_alltime": d["value_alltime"].values.astype(np.float64),
+            "bear_run": d["bear_run"].values.astype(np.float64),
+            "upper_wick": d["upper_wick"].values.astype(np.float64),
             "value": np.nan_to_num(d["value"].values.astype(np.float64)),
             "atr": d["atr"].values.astype(np.float64),          # v19 장대 판정
             "value_ma": d["value_ma"].values.astype(np.float64),  # v19 거래량 판정

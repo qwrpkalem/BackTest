@@ -26,7 +26,7 @@ import config as C
 class Position(object):
     __slots__ = ("code", "entry_date", "entry_px", "qty", "qty_init", "highest",
                  "stop", "tp_px", "partial_done", "pending_ma_exit",
-                 "cost_total", "proceeds_total", "last_close",
+                 "cost_total", "proceeds_total", "last_close", "pending_ratio",
                  "entry_r", "regime_r", "streak_r", "capped", "bear_exit")
 
     def __init__(self, code, date, px, qty, cost,
@@ -49,6 +49,7 @@ class Position(object):
         self.streak_r = streak_r
         self.capped = capped              # 현금 부족으로 목표 R 을 못 채웠는가
         self.bear_exit = False            # v19: 고점권 대량 음봉으로 청산 예약됐는가
+        self.pending_ratio = 1.0          # v55: 예약된 청산의 비율 (1.0 = 전량)
 
 
 def sell_amount(price, qty):
@@ -151,9 +152,23 @@ class Backtest(object):
             pos.last_close = c
 
             if pos.pending_ma_exit:
-                self._sell_all(pos, date, o,
-                               "BEAR_EXIT" if pos.bear_exit else "MA20_EXIT")
-                continue
+                reason = "BEAR_EXIT" if pos.bear_exit else "MA20_EXIT"
+                if pos.pending_ratio >= 1.0:
+                    self._sell_all(pos, date, o, reason)
+                    continue
+                # v55 (책): '비중 축소' — 일부만 팔고 나머지는 계속 들고 간다
+                q = int(pos.qty * pos.pending_ratio)
+                if q > 0:
+                    amt = sell_amount(o, q)
+                    self.cash += amt
+                    pos.proceeds_total += amt
+                    pos.qty -= q
+                pos.pending_ma_exit = False
+                pos.bear_exit = False
+                pos.pending_ratio = 1.0
+                if pos.qty <= 0:
+                    self._close_position(pos, date, reason)
+                    continue
 
             # v33: 부분익절 이후 잔량은 트레일링으로 끌고 가므로 청산 사유도 달라진다.
             trailing_now = C.TRAILING_STOP or (C.TRAIL_AFTER_TP and pos.partial_done)
@@ -196,15 +211,41 @@ class Backtest(object):
                 atr = p["atr"][di]
                 mb = p["sma_bear"][di]
                 trend_broken = (not C.BEAR_MA_PERIOD) or (mb == mb and c < mb)
-                if (c < o and atr == atr and vma == vma and trend_broken
+                # v54 (책 "역대급 거래량"): 20일평균 배수 대신 상장 이래 최대와 비교
+                if C.BEAR_VOL_ALLTIME:
+                    vth = p["value_alltime"][di]
+                    vol_big = vth == vth and p["value"][di] >= vth
+                else:
+                    vol_big = vma == vma and p["value"][di] >= vma * C.BEAR_VOL_MULT
+                if (c < o and atr == atr and trend_broken and vol_big
                         and (o - c) >= atr * C.BEAR_BODY_ATR
-                        and p["value"][di] >= vma * C.BEAR_VOL_MULT
                         and h >= pos.highest * C.BEAR_HIGH_PCT):
                     if C.BEAR_EXIT_AT_CLOSE:      # v25: 당일 종가 즉시 청산
                         self._sell_all(pos, date, c, "BEAR_EXIT")
                         continue
                     pos.pending_ma_exit = True
                     pos.bear_exit = True
+                    pos.pending_ratio = C.BEAR_EXIT_RATIO
+
+            # v57 (책): 클라이맥스 — "최고점에서 역대급 거래량을 동반한 윗꼬리가
+            # 달린 음봉은 과감하게 전량 매도한다."
+            if C.CLIMAX_EXIT and not pos.pending_ma_exit:
+                vth = p["value_alltime"][di]
+                wick = p["upper_wick"][di]
+                if (c < o and vth == vth and p["value"][di] >= vth
+                        and wick == wick and wick >= C.CLIMAX_WICK
+                        and h >= pos.highest * C.BEAR_HIGH_PCT):
+                    self._sell_all(pos, date, c, "CLIMAX")
+                    continue
+
+            # v56 (책): "연속적으로 ATR 정도의 음봉이 3개 이상 출현하면
+            # 추세 전환의 신호가 될 수 있다고 보고 비중 조절을 시작한다."
+            if C.CONSEC_BEAR and not pos.pending_ma_exit:
+                run = p["bear_run"][di]
+                if run == run and run >= C.CONSEC_BEAR_N:
+                    pos.pending_ma_exit = True
+                    pos.bear_exit = True
+                    pos.pending_ratio = C.CONSEC_BEAR_RATIO
 
             # v14: MA_EXIT_AFTER_TP 면 +24% 에 닿기 전까지는 20일선을 깨도 홀딩한다.
             # 이 경우 유일한 청산 수단은 진입가 -8% 고정손절이다.

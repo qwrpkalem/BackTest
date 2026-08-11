@@ -98,6 +98,17 @@ def add_indicators(df):
     df["sma_fast"] = c.rolling(C.MA_FAST).mean()
     df["sma_slow"] = c.rolling(C.MA_SLOW).mean()
 
+    # v54 (책): "역대급 거래량" — 상장 이래 최대 거래대금 (당일 제외)
+    df["value_alltime"] = df["value"].shift(1).expanding().max()
+
+    # v56 (책): "ATR 정도의 음봉이 연속 3개 이상이면 추세 전환 신호"
+    _bear = ((c < df["open"]) & ((df["open"] - c) >= df["atr"])).astype(float)
+    df["bear_run"] = _bear.rolling(C.CONSEC_BEAR_N).sum()
+
+    # v57 (책): 클라이맥스 — 최고점에서 역대급 거래량을 동반한 '윗꼬리 달린 음봉'
+    _rng = (h - l).replace(0, np.nan)
+    df["upper_wick"] = (h - np.maximum(df["open"], c)) / _rng
+
     # v12: 시장폭(breadth) 집계용 200일 이동평균
     df["sma_breadth"] = c.rolling(C.BREADTH_MA).mean()
 
