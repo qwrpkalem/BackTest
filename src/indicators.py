@@ -109,6 +109,10 @@ def add_indicators(df):
     _rng = (h - l).replace(0, np.nan)
     df["upper_wick"] = (h - np.maximum(df["open"], c)) / _rng
 
+    # v60 (책): "매도할 때 역시 주간 차트로 판단하는 것이 좋다"
+    # 주 5거래일로 환산한 주간 이동평균
+    df["sma_weekly"] = c.rolling(C.WEEKLY_MA_WEEKS * 5).mean()
+
     # v12: 시장폭(breadth) 집계용 200일 이동평균
     df["sma_breadth"] = c.rolling(C.BREADTH_MA).mean()
 
@@ -143,6 +147,9 @@ def add_indicators(df):
     # HTF 베이스는 짧으므로 깊이도 짧은 구간에서 잰다
     df["htf_depth"] = 1.0 - bs.shift(1).rolling(C.HTF_BASE_MAX).min() / base_hi
 
+    # 보통 매매의 조정 깊이 (v61 스윕용) — 최근 BASE_WINDOW 구간의 고저 폭
+    df["base_depth"] = 1.0 - bs.shift(1).rolling(C.BASE_WINDOW).min() / base_hi
+
     # 조정 중 거래량 감소 — 베이스 구간 평균이 그 이전 구간 평균보다 작은가
     v = df["value"]
     df["vol_dry"] = (v.shift(1).rolling(C.BASE_WINDOW).mean()
@@ -170,7 +177,8 @@ def add_signal(df):
     # v45: 베이스 조건 — 큰 상승 -> 건전한 조정 -> 재돌파
     if C.BASE_FILTER:
         normal = ((df["trend_gain"] >= C.TREND_GAIN_PCT)
-                  & (df["base_days"] >= C.NORMAL_BASE_MIN))
+                  & (df["base_days"] >= C.NORMAL_BASE_MIN)
+                  & (df["base_depth"] <= C.NORMAL_MAX_DEPTH))
         if C.VOL_DRYUP:
             normal = normal & df["vol_dry"]
         htf = ((df["htf_gain"] >= C.HTF_GAIN_PCT)

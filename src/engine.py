@@ -74,6 +74,10 @@ class Backtest(object):
         # v12: 시장별 신규 진입 허용 여부 {'KOSPI': ndarray(bool), 'KOSDAQ': ...}.
         # None 이면 항상 허용. 해당 시장이 닫혀 있으면 그 시장 종목만 진입을 막는다.
         self.market_open = market_open
+        # v60: 각 주의 마지막 거래일 표시 (주간 차트 판정을 그날에만 한다)
+        _w = pd.Series(days).dt.isocalendar()
+        _key = _w["year"].astype(str) + "-" + _w["week"].astype(str)
+        self.week_end = (_key != _key.shift(-1)).values
         self.blocked_signals = 0          # 시장 필터로 걸러진 시그널 수
         self.cash = float(C.INITIAL_CAPITAL)
         self.positions = {}
@@ -237,6 +241,22 @@ class Backtest(object):
                         and h >= pos.highest * C.BEAR_HIGH_PCT):
                     self._sell_all(pos, date, c, "CLIMAX")
                     continue
+
+            # v59 (책): 역배열 전환 — 단기선(5일)이 중기선(20일) 아래로
+            if C.MA_CROSS_EXIT and not pos.pending_ma_exit:
+                sf, sm = p["sma_fast"][di], p["sma20"][di]
+                if sf == sf and sm == sm and sf < sm:
+                    pos.pending_ma_exit = True
+                    pos.bear_exit = True
+                    pos.pending_ratio = C.MA_CROSS_RATIO
+
+            # v60 (책): 주간 차트 — 주 마지막 거래일에 주간 이평선 이탈 여부를 본다
+            if C.WEEKLY_EXIT and not pos.pending_ma_exit and self.week_end[di]:
+                sw = p["sma_weekly"][di]
+                if sw == sw and c < sw:
+                    pos.pending_ma_exit = True
+                    pos.bear_exit = True
+                    pos.pending_ratio = C.WEEKLY_RATIO
 
             # v56 (책): "연속적으로 ATR 정도의 음봉이 3개 이상 출현하면
             # 추세 전환의 신호가 될 수 있다고 보고 비중 조절을 시작한다."

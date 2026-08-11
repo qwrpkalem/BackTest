@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v58 (베이스 돌파 + 음봉 50% 축소 + 클라이맥스 전량)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v59 (베이스 돌파 + 3단 매도: 역배열·음봉 50% · 클라이맥스 전량)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -66,6 +66,7 @@ BASE_WINDOW = 60             # 베이스 고점(피벗) 관찰 기간
 TREND_LOOKBACK = 120         # 선행 추세 저점 탐색 기간
 TREND_GAIN_PCT = 0.50        # 보통 매매: 선행 추세 상승률 (책 "평균 50~60% 이상 선호")
 NORMAL_BASE_MIN = 15         # 보통 매매: 최소 베이스 길이 (책 "길수록 좋다")
+NORMAL_MAX_DEPTH = 9.99      # v61 검증 -> 상한 없음이 최적 (조일수록 단조 악화)
 VOL_DRYUP = True             # 조정 중 거래량 감소 (책)
 HTF_ENABLE = True            # High Tight Flag 를 별도 패턴으로 인정
 HTF_TREND_DAYS = 40          # 최대 8주
@@ -168,6 +169,19 @@ CONSEC_BEAR_RATIO = 1.0      # 청산 비율
 
 CLIMAX_EXIT = True           # v57·v58: 클라이맥스는 과감하게 전량 (책)
 CLIMAX_WICK = 0.3            # 윗꼬리가 당일 전체 범위의 이 비율 이상
+
+# --- v59 (책): 역배열 전환 ---
+# "상승할 때는 정배열이 좋듯이 변곡점의 신호 또한 역배열이 알려 준다.
+#  단기가 중기 아래로 내려온다면 의심해 봐야 한다."
+MA_CROSS_EXIT = True         # v59: 역배열 전환 (책) — 50% 축소가 전량보다 우세
+MA_CROSS_RATIO = 0.5         # 청산 비율
+
+# --- v60 (책): 주간 차트로 판단 ---
+# "매수할 때와 마찬가지로 매도할 때 역시 주간 차트로 판단하는 것이 좋다."
+# 주간 마지막 거래일에만 판정하고, 주간 종가가 주간 이동평균 아래면 청산한다.
+WEEKLY_EXIT = False          # v60 검증 -> 무효 (20일선 이탈이 항상 먼저 걸린다)
+WEEKLY_MA_WEEKS = 10         # 주간 이동평균 기간 (주)
+WEEKLY_RATIO = 1.0           # 청산 비율
 
 # v22: 20일선 이탈의 청산 체결 시점.
 #   True  면 신호 당일 종가 / False 면 익일 시가
