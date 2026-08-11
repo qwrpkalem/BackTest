@@ -210,7 +210,21 @@ class Backtest(object):
             # 이 경우 유일한 청산 수단은 진입가 -8% 고정손절이다.
             if C.MA_EXIT_AFTER_TP and not pos.partial_done:
                 continue
-            sma = p["sma20"][di]
+            # v49 (책): 상승 각도에 따라 기준 이동평균선을 바꾼다.
+            #   "급하게 상승할수록 주가와 이평선의 이격도가 벌어진다.
+            #    빨리 상승하면 짧은 선, 천천히 상승하면 긴 선에 맞춰 대응한다."
+            #   급등 -> 5일선 / 추세 -> 20일선 / 완만 -> 50일선
+            if C.MA_ADAPTIVE:
+                mid = p["sma20"][di]
+                gap = (c / mid - 1.0) if (mid == mid and mid > 0) else 0.0
+                if gap >= C.MA_GAP_FAST:
+                    sma = p["sma_fast"][di]
+                elif gap >= C.MA_GAP_SLOW:
+                    sma = p["sma20"][di]
+                else:
+                    sma = p["sma_slow"][di]
+            else:
+                sma = p["sma20"][di]
             if sma == sma and c < sma:    # NaN 아니고 이탈
                 if C.EXIT_AT_CLOSE:       # v22: 신호 당일 종가 청산 (진입과 대칭)
                     self._sell_all(pos, date, c, "MA20_EXIT")

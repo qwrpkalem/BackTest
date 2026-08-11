@@ -94,6 +94,10 @@ def add_indicators(df):
     # 청산용 20일 이동평균 (당일 포함)
     df["sma20"] = c.rolling(C.MA_EXIT_PERIOD).mean()
 
+    # v49 (책): 상승 각도에 따라 기준선을 바꾸기 위한 단기/장기 이동평균
+    df["sma_fast"] = c.rolling(C.MA_FAST).mean()
+    df["sma_slow"] = c.rolling(C.MA_SLOW).mean()
+
     # v12: 시장폭(breadth) 집계용 200일 이동평균
     df["sma_breadth"] = c.rolling(C.BREADTH_MA).mean()
 
