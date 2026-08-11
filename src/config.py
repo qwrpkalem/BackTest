@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v59 (베이스 돌파 + 3단 매도: 역배열·음봉 50% · 클라이맥스 전량)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v62 (선행 상승률 40%)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -64,7 +64,7 @@ ENTRY_PRIORITY = "rs"
 BASE_FILTER = True           # v46: 큰 상승 -> 건전한 조정 -> 재돌파 (책 기준)
 BASE_WINDOW = 60             # 베이스 고점(피벗) 관찰 기간
 TREND_LOOKBACK = 120         # 선행 추세 저점 탐색 기간
-TREND_GAIN_PCT = 0.50        # 보통 매매: 선행 추세 상승률 (책 "평균 50~60% 이상 선호")
+TREND_GAIN_PCT = 0.40        # v62: 50% -> 40% (책은 "50~60% 이상 선호"지만 절대수익 우선 선택)
 NORMAL_BASE_MIN = 15         # 보통 매매: 최소 베이스 길이 (책 "길수록 좋다")
 NORMAL_MAX_DEPTH = 9.99      # v61 검증 -> 상한 없음이 최적 (조일수록 단조 악화)
 VOL_DRYUP = True             # 조정 중 거래량 감소 (책)
