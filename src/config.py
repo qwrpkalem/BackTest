@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v63 (하락장 판정 60%)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v64 (R 상한 2)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -201,7 +201,7 @@ MAX_POSITIONS = 8                   # v32·v44 에서 확대 검증 -> 기각 (�
 # ⚠️ 최대 6R(25%)이면 4종목만으로 자산이 소진돼 현금부족이 발생한다(v9 에서 34.1%).
 R_UNIT_PCT = (0.02 / 0.08) / 6      # 0.041667 — 1R (v39 에서 절반 검증 -> 기각)
 R_MIN_UNITS = 1              # 각 구성요소의 하한
-R_MAX_UNITS = 3              # 각 구성요소의 상한
+R_MAX_UNITS = 2              # v64: 3 -> 2 (종목당 최대 투입 25% -> 16.7%)
 R_STEP = 1                   # 성공/실패 시 증감 폭
 MAX_POSITION_PCT = R_UNIT_PCT * R_MAX_UNITS * 2   # 0.25 — 최대 투입 (6R)
 MAX_LOSS_PCT = MAX_POSITION_PCT * TRAIL_PCT       # 0.02 — Max 2% Rule
