@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v62 (선행 상승률 40%)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v63 (하락장 판정 60%)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -212,7 +212,7 @@ MAX_LOSS_PCT = MAX_POSITION_PCT * TRAIL_PCT       # 0.02 — Max 2% Rule
 REGIME_MODE = "breadth"
 BREADTH_MA = 200             # 종목별 기준 이동평균
 BREADTH_BULL_MAX = 0.45      # 200일선 아래 비율 < 45%  -> 강세장
-BREADTH_BEAR_MIN = 0.70      # 200일선 아래 비율 > 70%  -> 하락장 (사이는 횡보장)
+BREADTH_BEAR_MIN = 0.60      # v63: 70% -> 60% (2024년을 하락장으로 인식 못 하던 문제)
 REGIME_MA_PERIOD = 200       # (index 모드용) 지수 이동평균
 REGIME_SLOPE_DAYS = 20       # (index 모드용) MA200 기울기 판정 기간
 REGIME_BEAR, REGIME_SIDE, REGIME_BULL = 1, 2, 3   # 각 국면의 R 배정
