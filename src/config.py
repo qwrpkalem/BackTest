@@ -4,7 +4,7 @@ import os
 
 # ---------------- 전략 버전 ----------------
 # 리포트 제목에 쓰인다. 스펙 버전을 올릴 때 여기도 함께 갱신할 것.
-STRATEGY_NAME = "52주 신고가 모멘텀 v64 (R 상한 2)"
+STRATEGY_NAME = "52주 신고가 모멘텀 v67 (유동성 제약 10%)"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -195,6 +195,11 @@ EXIT_AT_CLOSE = False
 BEAR_EXIT_AT_CLOSE = False   # v25 검증 결과 기각 — 익일 시가가 우세
 
 # ---------------- 자금 관리 (§5) ----------------
+# --- v68: 유동성 제약 ---
+# 한 종목에 그날 거래대금의 이 비율을 넘게 주문할 수 없다. 0 이면 제약 없음.
+# 시총 필터를 없앤 뒤(v46) 자산이 불어나면서 소형주에 비현실적인 주문이 생겼다.
+MAX_VALUE_PCT = 0.10         # v67: 그날 거래대금의 10% 상한 (현실성 보정)
+
 INITIAL_CAPITAL = 100_000_000
 MAX_POSITIONS = 8                   # v32·v44 에서 확대 검증 -> 기각 (집중이 곧 엣지)
 

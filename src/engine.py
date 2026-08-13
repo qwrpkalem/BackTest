@@ -371,6 +371,13 @@ class Backtest(object):
             unit = px * (1.0 + C.SLIPPAGE) * (1.0 + C.FEE_BUY)
             avail = self.cash * 0.9999                 # 반올림으로 현금 초과 방지
             budget = min(target, avail)
+            # v68: 유동성 제약 — 그날 거래대금의 일정 비율을 넘게 살 수 없다.
+            #   자산이 커지면서 소형주에 '그날 거래된 돈보다 많이' 사는 주문이
+            #   생겼다(최악 1110%). 실제로는 체결 불가능하므로 상한을 둔다.
+            if C.MAX_VALUE_PCT:
+                dv = self.panels[code]["value"][di]
+                if dv == dv and dv > 0:
+                    budget = min(budget, dv * C.MAX_VALUE_PCT)
             capped = avail < target                    # 목표 R 을 현금이 못 받쳐줌
             qty = int(math.floor(budget / unit))
             if qty <= 0:
