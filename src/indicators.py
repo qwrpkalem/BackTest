@@ -168,7 +168,10 @@ def add_signal(df):
     """
     # v38: HIGH_BASIS 에 맞춰 같은 축으로 비교한다 (high_250 도 그 축으로 계산됨)
     cond_high = (df["close"] if C.HIGH_BASIS == "close" else df["high"]) > df["high_250"]
-    cond_atr = df["gain"] >= df["atr"]                              # ATR 이상 상승
+    # v68: ATR 조건은 v1 부터 있었으나 책에서 받은 내용에는 없다. 우리 발명품일
+    # 수 있어 조건 자체를 끌 수 있게 했다(기간만 스윕했지 제거는 안 해봤다).
+    cond_atr = ((df["gain"] >= df["atr"]) if C.ATR_FILTER
+                else pd.Series(True, index=df.index))
     cond_val = df["value"] >= df["value_ma"] * C.VALUE_MULTIPLE      # 거래대금 급증
     # v35: 이름을 바로잡았다 — 상한가 판정이 아니라 극단 급등일 제외다.
     not_limit = (df["close"] / df["prev_close"] - 1.0) < C.EXTREME_GAIN_PCT

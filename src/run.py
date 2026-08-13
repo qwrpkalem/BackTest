@@ -87,7 +87,8 @@ def build_panels(codes, verbose=True):
         base = d["signal_base"].fillna(False).values.astype(bool)
         bench_series = index_rs.get(market_map.get(code))
         if rs_enabled and bench_series is not None:
-            rs_ok = (d["rs_raw"] >= bench_series).fillna(False).values
+            rs_ok = ((d["rs_raw"] >= bench_series).fillna(False).values
+                     if C.RS_FILTER else np.ones(len(days), dtype=bool))
         else:
             rs_ok = np.ones(len(days), dtype=bool)   # RS 데이터 없으면 필터 미적용
         # v16~v18: 투자자 매수 연속성 (최근 N일 중 M일 이상 순매수)

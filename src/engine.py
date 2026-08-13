@@ -78,6 +78,14 @@ class Backtest(object):
         _w = pd.Series(days).dt.isocalendar()
         _key = _w["year"].astype(str) + "-" + _w["week"].astype(str)
         self.week_end = (_key != _key.shift(-1)).values
+        # v67: 유휴 현금을 지수에 태운다. 1년의 33.5% 를 무포지션으로 보내므로
+        # 그 기간의 자금을 놀리지 않는 선택지. 지수 일간 수익률을 현금에 적용한다.
+        self.cash_ret = None
+        if C.CASH_ETF:
+            mi = pd.read_csv(os.path.join(C.INDEX_DIR, "%s.csv" % C.CASH_ETF),
+                             parse_dates=["date"]).sort_values("date").set_index("date")
+            r = mi["close"].pct_change().reindex(days).fillna(0.0).values
+            self.cash_ret = np.clip(r, -0.3, 0.3)
         self.blocked_signals = 0          # 시장 필터로 걸러진 시그널 수
         self.cash = float(C.INITIAL_CAPITAL)
         self.positions = {}
@@ -345,7 +353,15 @@ class Backtest(object):
         cands.sort(reverse=True)          # 거래대금 큰 순
 
         # v4: Max 2% Rule 기반 1R. 6R 이 곧 '최대 손실 2%'에 해당하는 투입금이다.
-        r_unit = equity * C.R_UNIT_PCT
+        # v66: 빈 슬롯이 많을 때 비중을 키운다.
+        #   측정 결과 우리는 1년의 33.5% 를 무포지션으로 보내고 평균 3.16종목만
+        #   들고 있었다(상한 8). 거래 1건당 기대값은 블로그와 비슷한데(+3.98% vs
+        #   +4.89%) 자금 가동률이 39% 대 100%+ 라 연 수익률이 벌어진다.
+        mult = 1.0
+        if C.DYN_SIZING:
+            free_ratio = slots / float(C.MAX_POSITIONS)   # 1.0 = 전부 비어 있음
+            mult = min(1.0 + C.DYN_SLOPE * free_ratio, C.DYN_MAX_MULT)
+        r_unit = equity * C.R_UNIT_PCT * mult
         for _, code in cands[:slots]:
             regime_r = self._regime_r(code, di)
             total_r = regime_r + self.streak_r          # 2R ~ 6R
@@ -373,6 +389,16 @@ class Backtest(object):
         t0 = time.time()
         for di in range(n):
             date = self.days[di]
+            # v67: 전일 종가부터 오늘 종가까지 유휴 현금이 지수와 함께 움직인다.
+            #   CASH_ETF_ONLY_OPEN 이면 시장필터가 열린 날에만 태운다.
+            if self.cash_ret is not None and di > 0 and self.cash > 0:
+                ride = True
+                if C.CASH_ETF_ONLY_OPEN and self.market_open:
+                    # ⚠️ 반드시 '전일' 신호로 판단한다. market_open[di] 는 당일
+                    # 종가로 계산되므로 그것으로 당일 수익률을 취하면 미래 참조다.
+                    ride = any(v[di - 1] for v in self.market_open.values())
+                if ride:
+                    self.cash *= (1.0 + self.cash_ret[di])
             self._process_exits(di, date)
             eq = self._equity_now()
             self._process_entries(di, date, eq)

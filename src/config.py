@@ -35,6 +35,7 @@ HIGH_LOOKBACK = 250          # 신고가 룩백 (당일 제외)
 #   원익홀딩스 2025-08-25  고가기준 -1.35% 탈락 / 종가기준 +1.25% 통과
 #   금양      2022-07-22  고가기준 -7.85% 탈락 / 종가기준 120일이면 +3.37% 통과
 HIGH_BASIS = "high"           # v38·v42 에서 "close" 검증 -> 채택 안 함 (일치 트랙 참조)
+ATR_FILTER = True            # v66 에서 제거 검증 -> 기각 (이상치 1건 의존)
 ATR_PERIOD = 14              # Wilder ATR (7·10·20·30일 검증 후 14가 최적)
 VALUE_MA_PERIOD = 20         # 거래대금 이동평균 기간 (당일 제외)
 VALUE_MULTIPLE = 1.3         # 거래대금 >= 20일평균 x 이 값 (v8~ 1.3 확정)
@@ -91,6 +92,7 @@ INST_MIN_DAYS = 3            # 이 중 순매수여야 하는 최소 일수
 INDEX_DIR = os.path.join(DATA, "index")
 INVESTOR_DIR = os.path.join(DATA, "investor")   # v16: 투자자별(기관/외국인) 순매매
 MARKET_INDEX = {"STK": "KOSPI", "KSQ": "KOSDAQ"}   # 종목 시장별 벤치마크 지수
+RS_FILTER = True             # v68: "지수보다 강할 것" 조건 사용 여부
 RS_QUARTER_DAYS = 63
 # v47: 상대강도 정의
 #   "oneil" : (직전 분기 종가비 x2) + 2~4분기 전 종가비   (v2~v46)
@@ -203,6 +205,19 @@ R_UNIT_PCT = (0.02 / 0.08) / 6      # 0.041667 — 1R (v39 에서 절반 검증 
 R_MIN_UNITS = 1              # 각 구성요소의 하한
 R_MAX_UNITS = 2              # v64: 3 -> 2 (종목당 최대 투입 25% -> 16.7%)
 R_STEP = 1                   # 성공/실패 시 증감 폭
+# --- v66: 자금 가동률 보정 ---
+# 빈 슬롯 비율에 비례해 1R 을 키운다.  배수 = 1 + DYN_SLOPE x (빈슬롯/전체슬롯)
+#   DYN_SLOPE = 0 이면 현행과 동일. 1.0 이면 전부 비었을 때 2배.
+# --- v67: 유휴 현금을 지수에 태운다 ---
+# 무포지션 기간이 1년의 33.5% 라 그 자금을 지수 ETF 로 굴리는 선택지.
+# ⚠️ 매매 비용·추적오차를 반영하지 않은 근사이며, 전략 성격이 바뀐다.
+CASH_ETF = None              # None / "KOSPI" / "KOSDAQ"
+CASH_ETF_ONLY_OPEN = False   # True 면 시장필터가 열린 날에만 태운다
+
+DYN_SIZING = False
+DYN_SLOPE = 1.0
+DYN_MAX_MULT = 2.5
+
 MAX_POSITION_PCT = R_UNIT_PCT * R_MAX_UNITS * 2   # 0.25 — 최대 투입 (6R)
 MAX_LOSS_PCT = MAX_POSITION_PCT * TRAIL_PCT       # 0.02 — Max 2% Rule
 
