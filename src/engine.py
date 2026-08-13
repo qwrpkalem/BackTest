@@ -27,7 +27,7 @@ class Position(object):
     __slots__ = ("code", "entry_date", "entry_px", "qty", "qty_init", "highest",
                  "stop", "tp_px", "partial_done", "pending_ma_exit",
                  "cost_total", "proceeds_total", "last_close", "pending_ratio",
-                 "entry_r", "regime_r", "streak_r", "capped", "bear_exit")
+                 "entry_r", "regime_r", "streak_r", "capped", "bear_exit", "pyr_n")
 
     def __init__(self, code, date, px, qty, cost,
                  entry_r=0, regime_r=0, streak_r=0, capped=False):
@@ -50,6 +50,7 @@ class Position(object):
         self.capped = capped              # 현금 부족으로 목표 R 을 못 채웠는가
         self.bear_exit = False            # v19: 고점권 대량 음봉으로 청산 예약됐는가
         self.pending_ratio = 1.0          # v55: 예약된 청산의 비율 (1.0 = 전량)
+        self.pyr_n = 0                    # v68: 추가 매수(피라미딩) 횟수
 
 
 def sell_amount(price, qty):
@@ -334,6 +335,53 @@ class Backtest(object):
         allowed = self.universe.get("%d-%02d" % (date.year, date.month))
         if not allowed:
             return
+
+        # v68 (피라미딩): 이미 보유한 종목이 다시 신고가를 뚫으면 추가 매수한다.
+        #   신호가 부족해 1년의 33.5% 를 빈손으로 보내는 구조를 진입 조건을 풀지
+        #   않고 메우는 유일한 방법. 책에서 "추세추종의 꽃"이라 불린다.
+        if C.PYRAMID:
+            # PYRAMID_ON = "signal" 이면 그 종목이 다시 신호를 낼 때만,
+            #              "gain"   이면 수익률이 계단(PYRAMID_STEP)을 넘을 때마다.
+            #   베이스 조건이 "직전 신고가 이후 15일 경과"를 요구하므로 방금 산
+            #   종목은 재신호가 거의 안 뜬다 -> "gain" 이 실질적인 불타기다.
+            targets = sigs if C.PYRAMID_ON == "signal" else list(self.positions.keys())
+            for code in targets:
+                pos = self.positions.get(code)
+                if pos is None or pos.pyr_n >= C.PYRAMID_MAX:
+                    continue
+                if code not in allowed or not self._entry_allowed(code, di):
+                    continue
+                if not self.panels[code]["valid"][di]:
+                    continue
+                px = self.panels[code]["close"][di]
+                gain = px / pos.entry_px - 1.0
+                need = (C.PYRAMID_MIN_GAIN if C.PYRAMID_ON == "signal"
+                        else C.PYRAMID_STEP * (pos.pyr_n + 1))
+                if gain < need:
+                    continue
+                add = pos.cost_total * C.PYRAMID_RATIO
+                unit = px * (1.0 + C.SLIPPAGE) * (1.0 + C.FEE_BUY)
+                budget = min(add, self.cash * 0.9999)
+                if C.MAX_VALUE_PCT:
+                    dv = self.panels[code]["value"][di]
+                    if dv == dv and dv > 0:
+                        budget = min(budget, dv * C.MAX_VALUE_PCT)
+                q = int(math.floor(budget / unit))
+                if q <= 0:
+                    continue
+                cost = buy_cost(px, q)
+                if cost > self.cash:
+                    continue
+                self.cash -= cost
+                # 평균 단가로 갱신하고 손절선도 평균 단가 기준으로 다시 잡는다
+                new_qty = pos.qty + q
+                pos.entry_px = (pos.entry_px * pos.qty + px * q) / new_qty
+                pos.qty = new_qty
+                pos.qty_init += q
+                pos.cost_total += cost
+                pos.stop = max(pos.stop, pos.entry_px * (1.0 - C.TRAIL_PCT))
+                pos.tp_px = pos.entry_px * (1.0 + C.PARTIAL_TP_PCT)
+                pos.pyr_n += 1
 
         cands = []
         for code in sigs:
